@@ -1076,7 +1076,7 @@ let curPage='dash', curSchedDay=0, curSettingsDay=0, curStuId=null;
 let editStudentId=null, attModalData=null, clsModalData=null;
 let stuGradeFilter='';
 let stuSubjFilter='';
-let uid=1000;
+let uid=Date.now();
 
 // ════════════════════════════════════════
 //  유틸
@@ -1209,6 +1209,38 @@ function load(){
             }
             p.friFixV3=true;
           }
+          // 출결 키를 과목별(ci)로 세분화: 이제 학생별로 과목마다 출결을 따로 관리
+          if(!p.attKeyV2){
+            var oldKeys=Object.keys(p.attendance||{}).filter(function(k){
+              return /^.+_\d{8}$/.test(k); // 기존 "이름_YYYYMMDD" 형식만 대상
+            });
+            var w2=['일','월','화','수','목','금','토'];
+            oldKeys.forEach(function(k){
+              var m=k.match(/^(.+)_(\d{8})$/);
+              if(!m)return;
+              var nm=m[1],ds=m[2];
+              var dt=new Date(parseInt(ds.slice(0,4)),parseInt(ds.slice(4,6))-1,parseInt(ds.slice(6,8)));
+              if(isNaN(dt.getTime()))return;
+              var dow=dt.getDay();
+              var dk=dow===0?'sun':['mon','tue','wed','thu','fri','sat'][dow-1];
+              var day=p.schedule&&p.schedule[dk];
+              var val=p.attendance[k];
+              if(day&&day.rows){
+                var matchedCis=[];
+                day.rows.forEach(function(r){
+                  (r.cells||[]).forEach(function(arr,ci){
+                    if(arr&&arr.indexOf(nm)>=0&&matchedCis.indexOf(ci)<0)matchedCis.push(ci);
+                  });
+                });
+                matchedCis.forEach(function(ci){
+                  var newKey=nm+'_'+ds+'_'+ci;
+                  if(!p.attendance[newKey])p.attendance[newKey]=val;
+                });
+              }
+              delete p.attendance[k];
+            });
+            p.attKeyV2=true;
+          }
           DB=p;
           return;
         }
@@ -1243,9 +1275,13 @@ function setSyncStatus(state){
   txt.textContent=m[1];
 }
 
-function initCloudSync(){
+function initCloudSync(retryCount){
+  retryCount=retryCount||0;
   try{
-    if(typeof window.supabase==='undefined'){setSyncStatus('offline');return;}
+    if(typeof window.supabase==='undefined'){
+      if(retryCount<10){setTimeout(function(){initCloudSync(retryCount+1);},300);return;}
+      setSyncStatus('offline');return;
+    }
     supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
     loadFromCloud();
   }catch(e){
@@ -1264,13 +1300,48 @@ function scheduleCloudSave(){
 async function pushToCloud(){
   if(!supabaseClient)return;
   try{
+    // 푸시 직전에 클라우드의 최신 상태를 먼저 가져와 병합 — 다른 기기가 그 사이 저장한 내용이
+    // 통째로 덮어써지지 않도록 함 (기존 방식은 전체 문서를 그대로 교체해서, 오래된 기기가
+    // 나중에 저장하면 방금 입력한 내용이 사라지는 문제가 있었음)
+    var res0=await supabaseClient.from('app_data').select('data').eq('id',SYNC_ROW_ID).maybeSingle();
+    var remote=res0&&res0.data&&res0.data.data;
+    if(remote&&remote.schedule&&(remote.updatedAt||0)!==lastAppliedUpdatedAt){
+      mergeRemoteIntoLocal(remote);
+    }
+    DB.updatedAt=Date.now();
+    lastAppliedUpdatedAt=DB.updatedAt;
+    try{localStorage.setItem('jm_v2',JSON.stringify(DB));}catch(e){}
     var payload=JSON.parse(JSON.stringify(DB));
     var res=await supabaseClient.from('app_data').upsert({id:SYNC_ROW_ID,data:payload});
     if(res.error)throw res.error;
     setSyncStatus('synced');
+    try{refreshEntireUI();}catch(e){}
   }catch(e){
     console.warn('클라우드 저장 실패',e);
     setSyncStatus('offline');
+  }
+}
+
+// 다른 기기의 원격 데이터를 현재 DB에 병합 (전체 교체가 아니라 항목 단위로 합침)
+function mergeRemoteIntoLocal(remote){
+  // 키-값 사전형 필드: 원격 값을 바탕으로 하되, 로컬에서 방금 바꾼 값을 우선 적용
+  ['attendance','homework','notices'].forEach(function(f){
+    DB[f]=Object.assign({},remote[f]||{},DB[f]||{});
+  });
+  // id 기반 배열 필드: id로 합치고, 로컬 항목을 우선 적용 (동일 id면 로컬이 최신 편집으로 간주)
+  ['classMemos','dirNotices','counsels','weeklyFeedback','academicEvents','academyTasks','makeups','vocabRecords','progs'].forEach(function(f){
+    var remoteArr=remote[f]||[],localArr=DB[f]||[];
+    var byId={};
+    remoteArr.forEach(function(item){if(item&&item.id!=null)byId[item.id]=item;});
+    localArr.forEach(function(item){if(item&&item.id!=null)byId[item.id]=item;});
+    var noId=remoteArr.filter(function(item){return item&&item.id==null;}).concat(localArr.filter(function(item){return item&&item.id==null;}));
+    DB[f]=Object.values(byId).concat(noId);
+  });
+  if(remote.feedback){DB.feedback=Object.assign({},remote.feedback||{},DB.feedback||{});}
+  if(remote.students&&DB.students){
+    var localNames={};DB.students.forEach(function(s){if(s&&s.name)localNames[s.name]=true;});
+    var extra=(remote.students||[]).filter(function(s){return s&&s.name&&!localNames[s.name];});
+    if(extra.length)DB.students=DB.students.concat(extra);
   }
 }
 
@@ -1323,7 +1394,10 @@ function subscribeRealtime(){
       var remoteTs=remote.updatedAt||0;
       if(remoteTs>(lastAppliedUpdatedAt||0)){
         lastAppliedUpdatedAt=remoteTs;
-        applyRemoteDB(remote);
+        // 전체 교체가 아니라 병합: 지금 이 화면에서 입력 중이던 내용이 사라지지 않도록 함
+        mergeRemoteIntoLocal(remote);
+        try{localStorage.setItem('jm_v2',JSON.stringify(DB));}catch(e){}
+        refreshEntireUI();
         toast('다른 기기에서 저장한 내용을 불러왔어요');
       }
     })
@@ -1493,10 +1567,22 @@ function renderDash(){
   var retestStu=new Set(retest.map(function(v){return v.student;}));
   try{document.getElementById('stat-retest').textContent=retestStu.size+'명';}catch(e){}
 
-  // 출석률
+  // 출석률 (과목별로 개별 집계 — 같은 학생이 여러 과목 들으면 각각 별도 계산)
   var td=dashDateStr();
   var o=0,total=0;
-  dayArr.forEach(function(n){var k=n+'_'+td;if(DB.attendance[k]){total++;if(DB.attendance[k]==='o')o++;}});
+  if(dayData&&dayData.rows){
+    dayData.rows.forEach(function(row){
+      row.cells.forEach(function(stuArr,ci){
+        if(!stuArr||!Array.isArray(stuArr))return;
+        stuArr.forEach(function(n){
+          if(!n)return;
+          var k=n+'_'+td+'_'+ci;
+          var v=DB.attendance[k]||'';
+          if(v){total++;if(v==='o')o++;}
+        });
+      });
+    });
+  }
   try{document.getElementById('stat-att').textContent=total?Math.round(o/total*100)+'%':'—';}catch(e){}
 
   // 각 섹션 개별 렌더링 (에러가 다른 섹션에 영향 안주게)
@@ -1570,7 +1656,7 @@ function renderTodayAttList(students, day){
     body.style.cssText='padding:6px 10px';
 
     gStu.forEach(function(name){
-      var ak=name+'_'+td;
+      var ak=name+'_'+td+'_'+gCi;
       var hk='hw_'+name+'_'+td+'_'+gCi;
       var cv=DB.attendance[ak]||'';
       var hv=DB.homework[hk]||'';
@@ -1699,7 +1785,7 @@ function renderWarnList(retest){
         var subj=dayData2.cols&&dayData2.cols[ci]||'';
         if(!subj||!stuArr)return;
         stuArr.filter(Boolean).forEach(function(name){
-          var ak=name+'_'+td;
+          var ak=name+'_'+td+'_'+ci;
           if(DB.attendance[ak]==='x'){
             if(!absentMap[name])absentMap[name]=[];
             absentMap[name].push(subj);
@@ -2275,7 +2361,7 @@ function openAttModal(dk,ri,ci,subject,stu,time){
   s1.innerHTML='<div class="sec-title" style="margin-bottom:8px">📋 출결 · 숙제 체크</div>';
   var grid=document.createElement('div');
   stu.forEach(function(name){
-    var ak=name+'_'+td,hk='hw_'+name+'_'+td+'_'+ci;
+    var ak=name+'_'+td+'_'+ci,hk='hw_'+name+'_'+td+'_'+ci;
     var cur=DB.attendance[ak]||'',hw=DB.homework[hk]||'';
     var row=document.createElement('div');row.id='am-'+name;
     row.style.cssText='display:flex;align-items:center;gap:6px;padding:8px 0;border-bottom:1px solid var(--border)';
@@ -3687,7 +3773,7 @@ function renderSubjView(){
     var hdr=document.createElement('div');hdr.className='subj-view-header';
     var bk='subj_before_'+td+'_'+ci,ak='subj_after_'+td+'_'+ci;
     var nb=DB.notices[bk]||'',na=DB.notices[ak]||'';
-    var ac={o:0,lt:0,x:0};stuArr.forEach(function(n){var a=DB.attendance[n+'_'+td]||'';if(a&&ac[a]!==undefined)ac[a]++;});
+    var ac={o:0,lt:0,x:0};stuArr.forEach(function(n){var a=DB.attendance[n+'_'+td+'_'+ci]||'';if(a&&ac[a]!==undefined)ac[a]++;});
     hdr.innerHTML='<span style="background:'+col[0]+';color:'+col[1]+';font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px">'+subName+'</span> '+
       '<span style="font-size:14px;font-weight:700;color:#fff">'+teacher+'</span><span style="font-size:12px;color:rgba(255,255,255,.6);margin-left:4px">'+stuArr.length+'명</span>'+
       '<div style="margin-left:auto;display:flex;gap:4px">'+(ac.o?'<span class="badge badge-green">출 '+ac.o+'</span>':'')+(ac.lt?'<span class="badge badge-amber">지 '+ac.lt+'</span>':'')+(ac.x?'<span class="badge badge-red">결 '+ac.x+'</span>':'')+'</div>';
@@ -3714,7 +3800,7 @@ function renderSubjView(){
       var rh=document.createElement('div');rh.style.cssText='padding:5px 14px;background:var(--s2);border-bottom:1px solid var(--border);font-size:12px;font-weight:600;color:var(--t2)';
       rh.textContent=rowData.time+' 반 ('+rowData.students.length+'명)';panel.appendChild(rh);
       rowData.students.forEach(function(name){
-        var ak2=name+'_'+td,hk='hw_'+name+'_'+td+'_'+ci;
+        var ak2=name+'_'+td+'_'+ci,hk='hw_'+name+'_'+td+'_'+ci;
         var cur2=DB.attendance[ak2]||'',hw=DB.homework[hk]||'';
         var rowKey=ci+'-'+rowData.time.replace(/[:.]/g,'');
         var row2=document.createElement('div');row2.className='stu-row';row2.id='sv-'+name+'-'+rowKey;
@@ -4128,7 +4214,7 @@ function updateSubjViewHeader(ci,td,stuArr,col){
   var hdr=document.querySelector('#spanel-'+ci+' .subj-view-header');
   if(!hdr)return;
   var ac={o:0,lt:0,x:0,mk:0};
-  stuArr.forEach(function(n){var a=DB.attendance[n+'_'+td]||'';if(a&&ac[a]!==undefined)ac[a]++;});
+  stuArr.forEach(function(n){var a=DB.attendance[n+'_'+td+'_'+ci]||'';if(a&&ac[a]!==undefined)ac[a]++;});
   var badges=hdr.querySelector('div[style*="margin-left:auto"]');
   if(badges)badges.innerHTML=
     (ac.o?'<span class="badge badge-green">출 '+ac.o+'</span>':'')+
