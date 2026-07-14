@@ -999,6 +999,7 @@ button,select,input,textarea{font-family:inherit}
 
 
 var dashDateOffset=0, weekOffset=0;
+var curSubjTabCi=null; // 과목별 뷰에서 현재 선택된 탭 (재렌더링 시에도 유지)
 var curStudySubj='math1', curStudyTab='test';
 var studySubjMap={math1:'수학 이지혜',math2:'수학 장영은',eng:'영어 김윤진',kor:'국어 박종희'};
 var studySubjColors={math1:['var(--m1)','var(--m1t)'],math2:['var(--m2)','var(--m2t)'],eng:['var(--en)','var(--ent)'],kor:['var(--ko)','var(--kot)']};
@@ -1036,14 +1037,14 @@ let DB = {
       {t:'7:00',cells:[[],['전우현','류연호','강이솔','최승우','이우영'],[],['윤수연','이소윤','김현일','서준호']]},
       {t:'8:00',cells:[[],[],[],['어지환','최승우']]}]},
     wed:{cols:['수학 이지혜','영어 김윤진','국어 박종희','수학 장영은'],rows:[
-      {t:'2:10',cells:[['장유준','김부승','손은서','현예린'],['이세연','이솔우','서민채','문시훈','문지윤'],[],['장성빈']]},
+      {t:'2:10',cells:[['장유준','김부승','손은서','현예린'],[],['이세연','이솔우','서민채','문시훈','문지윤'],['장성빈']]},
       {t:'3:10',cells:[['최승유','장서유','문시훈','김유성','박준수'],['장유준','김부승','손은서','서이정','김다은'],['양채은','장성현','장성빈','현예린'],['이소민','문지윤']]},
       {t:'4:05',cells:[['양채은','이재윤','서이정','서준혁','김다은'],['문지윤','문시훈','이소민','김유성','이건희','박준수'],['김현일','최서유'],['이든','권도윤','이우영','전우현']]},
       {t:'5:00',cells:[['서준혁','윤채은','김유성','이건희','박준수'],['윤수연','이소윤','전우진','권도윤','김현일'],['이창민','서이정','이든','최운호','이소민'],['이우영','전우현']]},
       {t:'6:00',cells:[[],['윤수연','이소윤','전우진','권도윤','김현일'],[],['류연호','강이솔','최승우','윤채은']]},
       {t:'7:00',cells:[[],[],[],['어지환','류연호','강이솔','최승우']]}]},
     thu:{cols:['수학 이지혜','영어 김윤진','국어 박종희','수학 장영은'],rows:[
-      {t:'2:10',cells:[['장유준','김부승','손은서','현예린','이창민'],['이세연','문시훈','임서윤','이솔우','문지윤'],[],[]]},
+      {t:'2:10',cells:[['장유준','김부승','손은서','현예린','이창민'],[],['이세연','문시훈','임서윤','이솔우','문지윤'],[]]},
       {t:'3:10',cells:[['최승유','장서유','이창민','이재윤','문시훈','박준수'],['장유준','김부승','손은서','서이정','김다은'],['장성현','김유성','황윤호','문지윤'],['장성빈','이소민']]},
       {t:'4:05',cells:[['이재윤','서이정','서준혁','김다은'],['문지윤','문시훈','이소민','김유성','이건희','박준수'],['이창민','제은우','이소윤','정연재','최운호'],['이우영','전우진']]},
       {t:'5:00',cells:[[],['윤수연','이소윤','전우진','김현일'],['서준혁','서준호'],['이우영','이건희']]},
@@ -1208,6 +1209,21 @@ function load(){
               }
             }
             p.friFixV3=true;
+          }
+          // 수/목요일 2:10 행에서 영어·국어 컬럼이 뒤바뀐 경우 보정
+          if(!p.wedThuFixV1){
+            ['wed','thu'].forEach(function(dk){
+              var d=p.schedule&&p.schedule[dk];
+              if(!d||!d.rows)return;
+              d.rows.forEach(function(r){
+                if(r.t!=='2:10')return;
+                var eng=r.cells&&r.cells[1],kor=r.cells&&r.cells[2];
+                if(eng&&eng.length&&(!kor||!kor.length)){
+                  r.cells[2]=eng;r.cells[1]=[];
+                }
+              });
+            });
+            p.wedThuFixV1=true;
           }
           // 출결 키를 과목별(ci)로 세분화: 이제 학생별로 과목마다 출결을 따로 관리
           if(!p.attKeyV2){
@@ -3753,23 +3769,26 @@ function renderSubjView(){
     subjGroups[ci].rows.push({time:row.t,students:stu.filter(function(n){return!!n;})});
   });});
   tabBar.innerHTML='';panels.innerHTML='';var firstCi=null;
+  var activeCi=(curSubjTabCi!=null&&subjGroups[curSubjTabCi])?curSubjTabCi:null;
   Object.entries(subjGroups).forEach(function(entry){
     var ci=parseInt(entry[0]),sg=entry[1];if(firstCi===null)firstCi=ci;
+    if(activeCi===null)activeCi=firstCi;
     var col=cols2[ci%4]||['var(--s2)','var(--t1)'];
     var parts=sg.subject.split(' ');var subName=parts[0];var teacher=parts.slice(1).join(' ');
     var stuArr=[...sg.students];
-    var tab=document.createElement('div');tab.className='subj-tab-item'+(ci===firstCi?' on':'');tab.id='stab-'+ci;
+    var tab=document.createElement('div');tab.className='subj-tab-item'+(ci===activeCi?' on':'');tab.id='stab-'+ci;
     var bEl=document.createElement('span');bEl.style.cssText='background:'+col[0]+';color:'+col[1]+';font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px';bEl.textContent=subName;
     tab.appendChild(bEl);tab.appendChild(document.createTextNode(' '+teacher));
     var cnt=document.createElement('span');cnt.className='cnt';cnt.textContent=stuArr.length+'명';tab.appendChild(cnt);
     tab.onclick=(function(c){return function(){
+      curSubjTabCi=c;
       document.querySelectorAll('.subj-tab-item').forEach(function(t){t.classList.remove('on');});
       document.querySelectorAll('.subj-view-panel').forEach(function(p){p.classList.remove('on');});
       document.getElementById('stab-'+c).classList.add('on');
       var pEl=document.getElementById('spanel-'+c);if(pEl)pEl.classList.add('on');
     };})(ci);
     tabBar.appendChild(tab);
-    var panel=document.createElement('div');panel.className='subj-view-panel'+(ci===firstCi?' on':'');panel.id='spanel-'+ci;
+    var panel=document.createElement('div');panel.className='subj-view-panel'+(ci===activeCi?' on':'');panel.id='spanel-'+ci;
     var hdr=document.createElement('div');hdr.className='subj-view-header';
     var bk='subj_before_'+td+'_'+ci,ak='subj_after_'+td+'_'+ci;
     var nb=DB.notices[bk]||'',na=DB.notices[ak]||'';
