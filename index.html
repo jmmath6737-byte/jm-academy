@@ -1954,12 +1954,12 @@ function renderTodayAttList(students, day){
       body.appendChild(rowDiv);
     });
 
-    // 학습기록 메모
-    try{if(typeof buildDashMemoSection==='function')buildDashMemoSection(body,dk,gTime,gCi,gStu,td,gSubj,'time');}catch(e){}
-
     sec.appendChild(hdr);
     sec.appendChild(body);
     list.appendChild(sec);
+
+    // 학습기록 메모
+    try{if(typeof buildDashMemoSection==='function')buildDashMemoSection(body,dk,gTime,gCi,gStu,td,gSubj,'time');}catch(e){}
   });
 }
 function setAtt2(name,date,val,btn){
@@ -4231,6 +4231,7 @@ function renderSubjView(){
         panel.appendChild(row2);
       });
     });
+    panels.appendChild(panel);
     buildDashMemoSection(panel,DKEYS[dayIdx],sg.rows[0]?sg.rows[0].time:'',ci,stuArr,td,sg.subject,'subj');
     var mkSec=document.createElement('div');mkSec.style.cssText='padding:10px 14px;border-top:1px solid var(--border);background:var(--amber-s)';
     mkSec.innerHTML='<div style="font-size:12px;font-weight:700;color:var(--amber);margin-bottom:7px">🔁 보강 등록</div>';
@@ -4248,7 +4249,6 @@ function renderSubjView(){
     };})(sg.subject);
     mkRow2.appendChild(mkStu2);mkRow2.appendChild(mkDet2);mkRow2.appendChild(mkBtn2);
     mkSec.appendChild(mkRow2);panel.appendChild(mkSec);
-    panels.appendChild(panel);
   });
   if(!Object.keys(subjGroups).length)panels.innerHTML='<div style="padding:20px;text-align:center;color:var(--t3);font-size:13px">오늘 수업 없음</div>';
 }
