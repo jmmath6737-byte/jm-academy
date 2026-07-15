@@ -1470,13 +1470,21 @@ function tombstone(f,id){
   DB.tombstones.push({f:f,id:id,at:Date.now()});
   if(DB.tombstones.length>500)DB.tombstones=DB.tombstones.slice(-500);
 }
-function mergeRemoteIntoLocal(remote){
+function mergeRemoteIntoLocal(remote,preferLocal){
+  // preferLocal=true(기본값): 저장 직전 병합 — 방금 이 기기에서 바꾼 값을 보호 (push 경로)
+  // preferLocal=false: 실시간 수신 병합 — 다른 기기가 방금 바꾼 값을 반영해야 함 (receive 경로)
+  //   ※ 이전에는 항상 local 우선이라, 이미 한 번 동기화된 키를 "다시" 수정하면
+  //     다른 화면에는 그 재수정이 영원히 반영되지 않는 버그가 있었음
+  if(preferLocal===undefined)preferLocal=true;
   var hadNewContent=false;
-  // 키-값 사전형 필드: 원격 값을 바탕으로 하되, 로컬에서 방금 바꾼 값을 우선 적용
+  // 키-값 사전형 필드
   ['attendance','homework','notices'].forEach(function(f){
     var remoteObj=remote[f]||{},localObj=DB[f]||{};
-    Object.keys(remoteObj).forEach(function(k){if(!(k in localObj))hadNewContent=true;});
-    DB[f]=Object.assign({},remoteObj,localObj);
+    Object.keys(remoteObj).forEach(function(k){
+      if(!(k in localObj))hadNewContent=true;
+      else if(!preferLocal&&JSON.stringify(remoteObj[k])!==JSON.stringify(localObj[k]))hadNewContent=true;
+    });
+    DB[f]=preferLocal?Object.assign({},remoteObj,localObj):Object.assign({},localObj,remoteObj);
   });
   // 삭제된 항목(로컬+원격 양쪽 기록)은 병합 결과에서 제외 — 삭제가 되살아나지 않도록 함
   var allTombstones=(remote.tombstones||[]).concat(DB.tombstones||[]);
@@ -1487,15 +1495,25 @@ function mergeRemoteIntoLocal(remote){
     allTombstones.forEach(function(t){if(t&&t.f&&t.id!=null)mergedTomb[t.f+':'+t.id]=t;});
     DB.tombstones=Object.values(mergedTomb).slice(-500);
   }
-  // id 기반 배열 필드: id로 합치고, 로컬 항목을 우선 적용 (동일 id면 로컬이 최신 편집으로 간주)
+  // id 기반 배열 필드: id로 합치고, preferLocal에 따라 어느 쪽이 최종본인지 결정
   ['classMemos','dirNotices','counsels','weeklyFeedback','academicEvents','academyTasks','makeups','vocabRecords','progs'].forEach(function(f){
     var remoteArr=(remote[f]||[]).filter(function(item){return!(item&&item.id!=null&&deadIds[f+':'+item.id]);});
     var localArr=(DB[f]||[]).filter(function(item){return!(item&&item.id!=null&&deadIds[f+':'+item.id]);});
     var localIds={};localArr.forEach(function(item){if(item&&item.id!=null)localIds[item.id]=true;});
-    remoteArr.forEach(function(item){if(item&&item.id!=null&&!localIds[item.id])hadNewContent=true;});
+    var localById={};localArr.forEach(function(item){if(item&&item.id!=null)localById[item.id]=item;});
+    remoteArr.forEach(function(item){
+      if(!item||item.id==null)return;
+      if(!localIds[item.id])hadNewContent=true;
+      else if(!preferLocal&&JSON.stringify(item)!==JSON.stringify(localById[item.id]))hadNewContent=true;
+    });
     var byId={};
-    remoteArr.forEach(function(item){if(item&&item.id!=null)byId[item.id]=item;});
-    localArr.forEach(function(item){if(item&&item.id!=null)byId[item.id]=item;});
+    if(preferLocal){
+      remoteArr.forEach(function(item){if(item&&item.id!=null)byId[item.id]=item;});
+      localArr.forEach(function(item){if(item&&item.id!=null)byId[item.id]=item;}); // local이 나중에 덮어씀
+    }else{
+      localArr.forEach(function(item){if(item&&item.id!=null)byId[item.id]=item;});
+      remoteArr.forEach(function(item){if(item&&item.id!=null)byId[item.id]=item;}); // remote가 나중에 덮어씀
+    }
     // id가 없는 항목은 내용으로 중복 판별 (매 병합마다 그대로 쌓이지 않도록)
     var noIdSig={};var noId=[];
     remoteArr.concat(localArr).forEach(function(item){
@@ -1519,7 +1537,16 @@ function mergeRemoteIntoLocal(remote){
     });
     DB[f]=out;
   });
-  if(remote.feedback){DB.feedback=Object.assign({},remote.feedback||{},DB.feedback||{});}
+  if(remote.feedback){
+    var localFb=DB.feedback||{},remoteFb=remote.feedback||{};
+    if(!preferLocal){
+      Object.keys(remoteFb).forEach(function(k){
+        if(!(k in localFb))hadNewContent=true;
+        else if(JSON.stringify(remoteFb[k])!==JSON.stringify(localFb[k]))hadNewContent=true;
+      });
+    }
+    DB.feedback=preferLocal?Object.assign({},remoteFb,localFb):Object.assign({},localFb,remoteFb);
+  }
   if(remote.students&&DB.students){
     var localNames={};DB.students.forEach(function(s){if(s&&s.name)localNames[s.name]=true;});
     var extra=(remote.students||[]).filter(function(s){return s&&s.name&&!localNames[s.name];});
@@ -1577,8 +1604,10 @@ function subscribeRealtime(){
       var remoteTs=remote.updatedAt||0;
       if(remoteTs>(lastAppliedUpdatedAt||0)){
         lastAppliedUpdatedAt=remoteTs;
-        // 전체 교체가 아니라 병합: 지금 이 화면에서 입력 중이던 내용이 사라지지 않도록 함
-        mergeRemoteIntoLocal(remote);
+        // 전체 교체가 아니라 병합: 지금 이 화면에서 입력 중이던 내용이 사라지지 않도록 하되,
+        // 이미 한 번 동기화된 항목을 다른 기기에서 "다시" 수정한 경우엔 그 새 값이 반영되도록
+        // remote를 우선한다 (preferLocal=false)
+        mergeRemoteIntoLocal(remote,false);
         try{localStorage.setItem('jm_v2',JSON.stringify(DB));}catch(e){}
         refreshEntireUI();
         toast('다른 기기에서 저장한 내용을 불러왔어요');
@@ -1611,7 +1640,7 @@ function startBackgroundPoll(){
       var remoteTs=remote.updatedAt||0;
       if(remoteTs>(lastAppliedUpdatedAt||0)){
         lastAppliedUpdatedAt=remoteTs;
-        var hadNewContent=mergeRemoteIntoLocal(remote);
+        var hadNewContent=mergeRemoteIntoLocal(remote,false);
         try{localStorage.setItem('jm_v2',JSON.stringify(DB));}catch(e){}
         if(hadNewContent){refreshEntireUI();}
         setSyncStatus('synced');
