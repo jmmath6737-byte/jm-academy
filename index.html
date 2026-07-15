@@ -519,13 +519,6 @@ button,select,input,textarea{font-family:inherit}
       </div>
       <div>
         <div class="card">
-          <div class="card-head">
-            <span class="card-title">⚠️ 주의 학생</span>
-            <button class="link-btn" onclick="goPage('study',document.querySelector('.nav-item:nth-child(5)'))">학습관리</button>
-          </div>
-          <div id="warn-list"><div style="padding:16px;text-align:center;color:var(--t3);font-size:13px">재시험 필요 학생 없음</div></div>
-        </div>
-        <div class="card">
           <div class="card-head"><span class="card-title">🔁 보강 등록 · 대기</span></div>
           <div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:6px">
             <select id="dash-mk-stu" class="form-input" style="font-size:13px;padding:7px 9px">
@@ -537,6 +530,24 @@ button,select,input,textarea{font-family:inherit}
             </div>
           </div>
           <div id="dash-makeup-list"><div style="padding:16px;text-align:center;color:var(--t3);font-size:13px">보강 대기 없음</div></div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">⚠️ 주의 학생</span>
+            <button class="link-btn" onclick="goPage('study',document.querySelector('.nav-item:nth-child(5)'))">학습관리</button>
+          </div>
+          <div id="warn-list"><div style="padding:16px;text-align:center;color:var(--t3);font-size:13px">재시험 필요 학생 없음</div></div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">📋 오늘의 학습 기록 (전체)</span>
+          </div>
+          <div style="display:flex;gap:4px;padding:8px 14px 0">
+            <button class="filter-tab on" id="feed-filter-all" onclick="filterTodayMemoFeed('all',this)">전체</button>
+            <button class="filter-tab" id="feed-filter-warn" onclick="filterTodayMemoFeed('warn',this)">⚠️ 주의</button>
+            <button class="filter-tab" id="feed-filter-praise" onclick="filterTodayMemoFeed('praise',this)">👍 칭찬</button>
+          </div>
+          <div id="today-memo-feed" style="max-height:420px;overflow-y:auto;padding-top:6px"><div style="padding:16px;text-align:center;color:var(--t3);font-size:13px">오늘 등록된 기록 없음</div></div>
         </div>
       </div>
     </div>
@@ -582,6 +593,10 @@ button,select,input,textarea{font-family:inherit}
     <div class="card" style="margin-top:12px">
       <div class="card-head">
         <span class="card-title" id="sched-card-title">월요일 수업표</span>
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--t2);cursor:pointer;margin-right:8px">
+          <input type="checkbox" id="merge-toggle" checked onchange="toggleMergeConsecutive(this.checked)" style="cursor:pointer">
+          연강 자동 합치기
+        </label>
         <button class="btn btn-blue btn-sm" onclick="openAddClsModal()">+ 반 추가</button>
       </div>
       <div class="sched-grid2"><table class="sched-table" id="sched-table"></table></div>
@@ -1027,48 +1042,65 @@ const DEFAULT_SCHEDULE = {
     mon:{cols:['수학 이지혜','영어 김윤진','국어 박종희','수학 장영은'],rows:[
       {t:'2:10',cells:[['장유준','김부승','손은서','현예린'],[],[],[]]},
       {t:'3:10',cells:[['최승유','장서유','양채은','문시훈','김유성','박준수'],['장유준','김부승','손은서','서이정','김다은'],[],['문지윤','장성빈','이소민']]},
-      {t:'3:30',cells:[[],[],[],['문지윤','장성빈','이소민','이든']]},
+      {t:'3:30',cells:[[],[],[],['이든']]},
       {t:'4:05',cells:[['이재윤','서이정','서준혁','김다은'],['문지윤','문시훈','이소민','김유성','이건희','박준수'],[],['이든','권도윤']]},
-      {t:'4:30',cells:[[],['권도윤'],[],['이든']]},
-      {t:'5:00',cells:[[],['윤수연','이소윤','전우진','권도윤','김현일'],[],['이건희','전우현']]},
-      {t:'6:00',cells:[[],['윤수연','이소윤','전우진','권도윤','김현일'],[],['전우현','류연호','강이솔']]},
-      {t:'7:00',cells:[[],[],[],['어지환','류연호','강이솔','최승우']]},
-      {t:'8:00',cells:[[],[],[],['어지환','류연호','강이솔','최승우']]}]},
+      {t:'4:30',cells:[[],['권도윤'],[],[]]},
+      {t:'5:00',cells:[[],['윤수연','이소윤','전우진','권도윤','김현일'],[],['이건희']]},
+      {t:'6:00',cells:[[],['윤수연','이소윤','전우진','권도윤','김현일'],[],['전우현','류연호']]},
+      {t:'7:00',cells:[[],[],[],['어지환','류연호','최승우']]},
+      {t:'8:00',cells:[[],[],[],['어지환','류연호','최승우']]}
+    ]},
     tue:{cols:['수학 이지혜','영어 김윤진','국어 박종희','수학 장영은'],rows:[
-      {t:'3:10',cells:[['장서유','이창민','이재윤','문시훈','박준수'],['장유준','김부승','손은서','서이정','이건희'],['이세연','김유성','양채은','정지훈'],['문지윤','장성빈','이소민']]},
-      {t:'3:30',cells:[[],[],[],['문지윤','장성빈','이소민']]},
-      {t:'4:05',cells:[['이재윤','이건희','이창민','장유준','서준혁'],['문지윤','문시훈','이소민','김유성','김다은','박준수'],['제은우','류연호','강이솔','서이정'],[]]},
+      {t:'3:10',cells:[['장서유','이재윤','문시훈','박준수'],['장유준','김부승','손은서','서이정','이건희'],['이세연','김유성','양채은','정지훈'],['문지윤','장성빈','이소민']]},
+      {t:'4:05',cells:[['이재윤','이건희','장유준','서준혁'],['문지윤','문시훈','이소민','김유성','김다은','박준수'],['서이정'],[]]},
       {t:'4:30',cells:[[],[],[],['이우영']]},
-      {t:'5:00',cells:[[],['윤수연','이소윤','전우진','권도윤','김현일'],['서준혁','장성빈','류연호','강이솔','서준호'],['윤채은','이우영']]},
-      {t:'6:00',cells:[['윤채은'],['전우현','류연호','강이솔','최승우','이우영'],['이든'],['윤수연','이소윤','전우진','권도윤','김현일','서준호']]},
-      {t:'7:00',cells:[[],['전우현','류연호','강이솔','최승우','이우영'],[],['윤수연','이소윤','김현일','서준호']]},
-      {t:'8:00',cells:[[],[],[],['어지환','최승우']]}]},
+      {t:'5:00',cells:[[],['윤수연','이소윤','전우진','권도윤','김현일'],['서준혁','장성빈','윤채은','서준호'],['이우영']]},
+      {t:'5:30',cells:[[],['전우현','류연호','최승우','이우영'],['이든'],['윤수연','이소윤','전우진','권도윤','김현일']]},
+      {t:'6:00',cells:[[],['전우현','류연호','최승우','이우영'],[],['윤수연','이소윤','전우진','권도윤','김현일','서준호','윤채은']]},
+      {t:'7:00',cells:[[],['전우현','류연호','최승우','이우영'],[],['윤수연','이소윤','김현일','서준호']]},
+      {t:'8:00',cells:[[],[],[],['어지환']]}
+    ]},
     wed:{cols:['수학 이지혜','영어 김윤진','국어 박종희','수학 장영은'],rows:[
-      {t:'2:10',cells:[['장유준','김부승','손은서','현예린'],[],['이세연','이솔우','서민채','문시훈','문지윤'],['장성빈']]},
-      {t:'3:10',cells:[['최승유','장서유','문시훈','김유성','박준수'],['장유준','김부승','손은서','서이정','김다은'],['양채은','장성현','장성빈','현예린'],['이소민','문지윤']]},
+      {t:'2:10',cells:[['장유준','김부승','손은서','현예린'],[],['이세연','이솔우','문시훈','문지윤'],['장성빈','이소민']]},
+      {t:'3:10',cells:[['최승유','장서유','문시훈','김유성','박준수'],['장유준','김부승','손은서','서이정','김다은'],['양채은','장성현','장성빈','현예린','이소민'],['문지윤']]},
+      {t:'3:30',cells:[[],[],['최서유'],['이든','이우영']]},
       {t:'4:05',cells:[['양채은','이재윤','서이정','서준혁','김다은'],['문지윤','문시훈','이소민','김유성','이건희','박준수'],['김현일','최서유'],['이든','권도윤','이우영','전우현']]},
-      {t:'5:00',cells:[['서준혁','윤채은','김유성','이건희','박준수'],['윤수연','이소윤','전우진','권도윤','김현일'],['이창민','서이정','이든','최운호','이소민'],['이우영','전우현']]},
-      {t:'6:00',cells:[[],['윤수연','이소윤','전우진','권도윤','김현일'],[],['류연호','강이솔','최승우','윤채은']]},
-      {t:'7:00',cells:[[],[],[],['어지환','류연호','강이솔','최승우']]}]},
+      {t:'4:30',cells:[[],[],['최운호'],[]]},
+      {t:'5:00',cells:[['서준혁','김유성','이건희','박준수'],['윤수연','이소윤','전우진','권도윤','김현일'],['서이정','이든','최운호'],['이우영','전우현']]},
+      {t:'6:00',cells:[[],['윤수연','이소윤','전우진','권도윤','김현일'],[],['류연호','강이솔','최승우']]},
+      {t:'7:00',cells:[[],[],[],['어지환','류연호','강이솔','최승우']]},
+      {t:'8:00',cells:[[],[],[],['어지환','류연호','최승우']]}
+    ]},
     thu:{cols:['수학 이지혜','영어 김윤진','국어 박종희','수학 장영은'],rows:[
-      {t:'2:10',cells:[['장유준','김부승','손은서','현예린','이창민'],[],['이세연','문시훈','임서윤','이솔우','문지윤'],[]]},
-      {t:'3:10',cells:[['최승유','장서유','이창민','이재윤','문시훈','박준수'],['장유준','김부승','손은서','서이정','김다은'],['장성현','김유성','황윤호','문지윤'],['장성빈','이소민']]},
-      {t:'4:05',cells:[['이재윤','서이정','서준혁','김다은'],['문지윤','문시훈','이소민','김유성','이건희','박준수'],['이창민','제은우','이소윤','정연재','최운호'],['이우영','전우진']]},
-      {t:'5:00',cells:[[],['윤수연','이소윤','전우진','김현일'],['서준혁','서준호'],['이우영','이건희']]},
-      {t:'6:00',cells:[[],['전우현','류연호','강이솔','최승우','이우영'],[],['윤수연','이소윤','전우진','김현일','서준호']]},
-      {t:'7:00',cells:[[],['전우현','류연호','강이솔','최승우','이우영'],[],['윤수연','이소윤','김현일','서준호']]}]},
+      {t:'2:10',cells:[['장유준','김부승','손은서','현예린'],[],['이세연','문시훈','임서윤','이솔우','문지윤'],[]]},
+      {t:'2:30',cells:[[],[],['김다은'],[]]},
+      {t:'3:10',cells:[['최승유','장서유','이재윤','문시훈','박준수'],['장유준','김부승','손은서','서이정','김다은'],['장성현','김유성','황윤호','문지윤'],['장성빈','이소민']]},
+      {t:'3:30',cells:[[],[],[],['이우영']]},
+      {t:'4:05',cells:[['이재윤','서이정','서준혁','김다은'],['문지윤','문시훈','이소민','김유성','이건희','박준수'],['이소윤','정연재','최운호'],['이우영','전우진']]},
+      {t:'4:30',cells:[[],[],['최서유'],[]]},
+      {t:'5:00',cells:[[],['윤수연','이소윤','전우진','김현일'],['서준혁','윤채은','서준호'],['이우영','이건희']]},
+      {t:'5:30',cells:[[],['전우현','류연호','최승우','이우영'],[],['윤수연','이소윤','전우진','김현일','이건희']]},
+      {t:'6:00',cells:[[],['전우현','류연호','최승우','이우영'],[],['윤수연','이소윤','전우진','김현일','서준호','윤채은']]},
+      {t:'7:00',cells:[[],['전우현','류연호','최승우','이우영'],[],['윤수연','이소윤','김현일','서준호']]},
+      {t:'8:00',cells:[[],[],[],['어지환']]}
+    ]},
     fri:{cols:['수학 이지혜','영어 김윤진','국어 박종희','수학 장영은'],rows:[
-      {t:'2:10',cells:[['현예린','김부승'],[],['이세연','정연재','임서윤'],[]]},
-      {t:'3:10',cells:[['최승유','장서유','김유성','박준수'],[],['양채은','장성현','황윤호','현예린','서민채','정지훈'],['장성빈','이소민']]},
+      {t:'2:10',cells:[['현예린','김부승'],[],['이세연','임서윤'],[]]},
+      {t:'3:10',cells:[['최승유','장서유','김유성','박준수'],[],['양채은','장성현','황윤호','현예린','정지훈'],['장성빈','이소민']]},
+      {t:'3:30',cells:[[],[],[],['이우영','전우현']]},
       {t:'4:05',cells:[['양채은','이재윤','김유성','이건희','박준수'],[],['김다은','이소민','정연재','김현일','이소윤'],['권도윤','전우진','이우영','전우현']]},
-      {t:'5:00',cells:[[],[],['장성빈','류연호','강이솔'],['윤수연','이소윤','전우진','권도윤','김현일','서준호']]},
-      {t:'6:00',cells:[[],[],['류연호','강이솔'],['윤수연','이소윤','김현일','이든','서준호','권도윤']]},
-      {t:'7:00',cells:[[],[],[],['어지환','류연호','강이솔','최승우']]}]},
+      {t:'5:00',cells:[[],[],['장성빈'],['윤수연','이소윤','전우진','권도윤','김현일','서준호','이우영','전우현']]},
+      {t:'5:30',cells:[[],[],[],['이든','윤수연','이소윤','전우진','서준호','권도윤','김현일']]},
+      {t:'6:00',cells:[[],[],[],['윤수연','이소윤','김현일','이든','서준호','권도윤']]},
+      {t:'7:00',cells:[[],[],[],['어지환','류연호','최승우']]},
+      {t:'8:00',cells:[[],[],[],['어지환','류연호','최승우']]}
+    ]},
     sat:{cols:['수학 이지혜','영어 김윤진','국어 박종희','수학 장영은'],rows:[]},
     sun:{cols:['수학 이지혜','영어 김윤진','국어 박종희','수학 장영은'],rows:[]}
 };
 let DB = {
   updatedAt: 0,
+  scheduleMergeConsecutive: true, // 연강(같은 명단 연속 시간대) 자동 합치기 표시 여부
   students: [], // {id, name, grade, school, phone, time, fee, subject, join, memo}
   schedule: JSON.parse(JSON.stringify(DEFAULT_SCHEDULE)),
   attendance: {}, // {name_YYYYMMDD: 'o'|'x'|'lt'|'mk'}
@@ -1080,6 +1112,7 @@ let DB = {
   weeklyFeedback: [], // {id, student, date, content, ts} - 주차별 주간 피드백 (날짜 기반)
   academicEvents: [], // {id, date, title, memo} - 학사일정
   academyTasks: [],    // {id, cat, date, title, content, status, ts} - 학원업무(블로그/채널공지/학생상담/교재주문/물품주문)
+  tombstones: [],  // {f, id, at} - 삭제된 항목 기록 (클라우드 병합 시 되살아나지 않도록)
   memos: [],
   todos: []
 };
@@ -1124,6 +1157,41 @@ function load(){
           if(!p.weeklyFeedback)p.weeklyFeedback=[];
           if(!p.academicEvents)p.academicEvents=[];
           if(!p.academyTasks)p.academyTasks=[];
+          if(p.scheduleMergeConsecutive===undefined)p.scheduleMergeConsecutive=true;
+          // 정확한 최신 시간표(구글시트 기준, 5:30 시간대 포함)로 전체 갱신
+          // 사용자가 나중에 직접 추가한 5번째+ 과목(예: 류현지)이 있다면 그대로 보존함
+          if(!p.scheduleV2Import){
+            var oldSched=p.schedule;
+            var newSched=JSON.parse(JSON.stringify(DEFAULT_SCHEDULE));
+            Object.keys(newSched).forEach(function(dk){
+              var oldDay=oldSched&&oldSched[dk];
+              if(!oldDay||!oldDay.cols)return;
+              var extraCols=[];
+              for(var i=4;i<oldDay.cols.length;i++){if(oldDay.cols[i])extraCols.push({name:oldDay.cols[i],oldCi:i});}
+              if(!extraCols.length)return;
+              var newDay=newSched[dk];
+              extraCols.forEach(function(ec){newDay.cols.push(ec.name);});
+              newDay.rows.forEach(function(r){while(r.cells.length<newDay.cols.length)r.cells.push([]);});
+              extraCols.forEach(function(ec,idx){
+                var newCi=4+idx;
+                (oldDay.rows||[]).forEach(function(oldRow){
+                  var stu=oldRow.cells&&oldRow.cells[ec.oldCi];
+                  if(!stu||!stu.length)return;
+                  var newRow=newDay.rows.find(function(r){return r.t===oldRow.t;});
+                  if(!newRow){
+                    newRow={t:oldRow.t,cells:newDay.cols.map(function(){return [];})};
+                    newDay.rows.push(newRow);
+                    newDay.rows.sort(function(a,b){return a.t.localeCompare(b.t,undefined,{numeric:true});});
+                  }
+                  while(newRow.cells.length<newDay.cols.length)newRow.cells.push([]);
+                  newRow.cells[newCi]=stu.slice();
+                });
+              });
+            });
+            p.schedule=newSched;
+            p.scheduleV2Import=true;
+          }
+          if(!p.tombstones)p.tombstones=[];
           if(!p.calEvV2){
             (p.academicEvents||[]).forEach(function(e){
               if(!e.startDate){e.startDate=e.date;e.endDate=e.date;delete e.date;}
@@ -1237,6 +1305,41 @@ function load(){
             });
             p.wedThuFixV1=true;
           }
+          // 메모/보강 기록에 id가 없던 항목들 때문에 클라우드 동기화 중 계속 중복 생성되던 문제 정리
+          if(!p.dedupV1){
+            var dedupTmpUid=(p.updatedAt||Date.now());
+            ['classMemos','dirNotices','makeups'].forEach(function(f){
+              var arr=p[f]||[];
+              // id 없는 항목에 새 id 부여
+              arr.forEach(function(item){if(item&&item.id==null)item.id=dedupTmpUid++;});
+              // 완전히 같은 내용(같은 학생·내용·날짜·시간)의 중복 항목 제거
+              var seen={};var out=[];
+              arr.forEach(function(item){
+                if(!item)return;
+                var sig=[item.student,item.text||item.detail||'',item.date,item.ts||'',item.cat||'',item.ci].join('|');
+                if(seen[sig])return;
+                seen[sig]=true;out.push(item);
+              });
+              p[f]=out;
+            });
+            p.dedupV1=true;
+          }
+          // 여러 기기가 각자 따로 이전 마이그레이션을 실행하면서, 같은 내용인데 서로 다른 id가
+          // 부여돼 중복이 남아있는 경우까지 한 번 더 정리
+          if(!p.dedupV2){
+            ['classMemos','dirNotices','makeups'].forEach(function(f){
+              var arr=p[f]||[];
+              var seen={};var out=[];
+              arr.slice().sort(function(a,b){return (a&&a.id||0)-(b&&b.id||0);}).forEach(function(item){
+                if(!item)return;
+                var sig=[item.student,item.text||item.detail||'',item.date,item.ts||'',item.cat||'',item.ci].join('|');
+                if(seen[sig])return;
+                seen[sig]=true;out.push(item);
+              });
+              p[f]=out;
+            });
+            p.dedupV2=true;
+          }
           // 출결 키를 과목별(ci)로 세분화: 이제 학생별로 과목마다 출결을 따로 관리
           if(!p.attKeyV2){
             var oldKeys=Object.keys(p.attendance||{}).filter(function(k){
@@ -1325,16 +1428,20 @@ function scheduleCloudSave(){
   cloudSaveTimer=setTimeout(pushToCloud,800);
 }
 
+var pushInFlight=false, pushQueued=false;
 async function pushToCloud(){
   if(!supabaseClient)return;
+  if(pushInFlight){pushQueued=true;return;} // 이미 진행 중이면 끝난 뒤 최신 상태로 다시 실행
+  pushInFlight=true;
   try{
     // 푸시 직전에 클라우드의 최신 상태를 먼저 가져와 병합 — 다른 기기가 그 사이 저장한 내용이
     // 통째로 덮어써지지 않도록 함 (기존 방식은 전체 문서를 그대로 교체해서, 오래된 기기가
     // 나중에 저장하면 방금 입력한 내용이 사라지는 문제가 있었음)
     var res0=await supabaseClient.from('app_data').select('data').eq('id',SYNC_ROW_ID).maybeSingle();
     var remote=res0&&res0.data&&res0.data.data;
+    var hadNewContent=false;
     if(remote&&remote.schedule&&(remote.updatedAt||0)!==lastAppliedUpdatedAt){
-      mergeRemoteIntoLocal(remote);
+      hadNewContent=mergeRemoteIntoLocal(remote);
     }
     DB.updatedAt=Date.now();
     lastAppliedUpdatedAt=DB.updatedAt;
@@ -1343,34 +1450,82 @@ async function pushToCloud(){
     var res=await supabaseClient.from('app_data').upsert({id:SYNC_ROW_ID,data:payload});
     if(res.error)throw res.error;
     setSyncStatus('synced');
-    try{refreshEntireUI();}catch(e){}
+    // 다른 기기가 그 사이에 남긴 진짜 새 내용이 있을 때만 화면을 다시 그림 (내 저장 자체로는 다시 안 그림 —
+    // 그래야 방금 입력한 내용이 잠깐 사라지는 것처럼 보이는 문제도 없고, 동시에 다른 선생님이 남긴
+    // 기록이 조용히 동기화만 되고 화면엔 안 보이던 문제도 해결됨)
+    if(hadNewContent){try{refreshEntireUI();}catch(e){}}
   }catch(e){
     console.warn('클라우드 저장 실패',e);
     setSyncStatus('offline');
+  }finally{
+    pushInFlight=false;
+    if(pushQueued){pushQueued=false;pushToCloud();}
   }
 }
 
 // 다른 기기의 원격 데이터를 현재 DB에 병합 (전체 교체가 아니라 항목 단위로 합침)
+function tombstone(f,id){
+  if(id==null)return;
+  if(!DB.tombstones)DB.tombstones=[];
+  DB.tombstones.push({f:f,id:id,at:Date.now()});
+  if(DB.tombstones.length>500)DB.tombstones=DB.tombstones.slice(-500);
+}
 function mergeRemoteIntoLocal(remote){
+  var hadNewContent=false;
   // 키-값 사전형 필드: 원격 값을 바탕으로 하되, 로컬에서 방금 바꾼 값을 우선 적용
   ['attendance','homework','notices'].forEach(function(f){
-    DB[f]=Object.assign({},remote[f]||{},DB[f]||{});
+    var remoteObj=remote[f]||{},localObj=DB[f]||{};
+    Object.keys(remoteObj).forEach(function(k){if(!(k in localObj))hadNewContent=true;});
+    DB[f]=Object.assign({},remoteObj,localObj);
   });
+  // 삭제된 항목(로컬+원격 양쪽 기록)은 병합 결과에서 제외 — 삭제가 되살아나지 않도록 함
+  var allTombstones=(remote.tombstones||[]).concat(DB.tombstones||[]);
+  var deadIds={};
+  allTombstones.forEach(function(t){if(t&&t.f&&t.id!=null)deadIds[t.f+':'+t.id]=true;});
+  if(remote.tombstones&&remote.tombstones.length){
+    var mergedTomb={};
+    allTombstones.forEach(function(t){if(t&&t.f&&t.id!=null)mergedTomb[t.f+':'+t.id]=t;});
+    DB.tombstones=Object.values(mergedTomb).slice(-500);
+  }
   // id 기반 배열 필드: id로 합치고, 로컬 항목을 우선 적용 (동일 id면 로컬이 최신 편집으로 간주)
   ['classMemos','dirNotices','counsels','weeklyFeedback','academicEvents','academyTasks','makeups','vocabRecords','progs'].forEach(function(f){
-    var remoteArr=remote[f]||[],localArr=DB[f]||[];
+    var remoteArr=(remote[f]||[]).filter(function(item){return!(item&&item.id!=null&&deadIds[f+':'+item.id]);});
+    var localArr=(DB[f]||[]).filter(function(item){return!(item&&item.id!=null&&deadIds[f+':'+item.id]);});
+    var localIds={};localArr.forEach(function(item){if(item&&item.id!=null)localIds[item.id]=true;});
+    remoteArr.forEach(function(item){if(item&&item.id!=null&&!localIds[item.id])hadNewContent=true;});
     var byId={};
     remoteArr.forEach(function(item){if(item&&item.id!=null)byId[item.id]=item;});
     localArr.forEach(function(item){if(item&&item.id!=null)byId[item.id]=item;});
-    var noId=remoteArr.filter(function(item){return item&&item.id==null;}).concat(localArr.filter(function(item){return item&&item.id==null;}));
+    // id가 없는 항목은 내용으로 중복 판별 (매 병합마다 그대로 쌓이지 않도록)
+    var noIdSig={};var noId=[];
+    remoteArr.concat(localArr).forEach(function(item){
+      if(!item||item.id!=null)return;
+      var sig=JSON.stringify(item);
+      if(noIdSig[sig])return;
+      noIdSig[sig]=true;noId.push(item);
+    });
     DB[f]=Object.values(byId).concat(noId);
+  });
+  // 같은 내용(같은 학생·내용·날짜·시간)인데 id만 다른 경우까지 한 번 더 정리
+  // (기기마다 따로 id가 부여됐다가 병합되면서 쌍으로 중복되는 걸 방지)
+  ['classMemos','dirNotices','makeups'].forEach(function(f){
+    var arr=DB[f]||[];
+    var seen={};var out=[];
+    arr.slice().sort(function(a,b){return (a&&a.id||0)-(b&&b.id||0);}).forEach(function(item){
+      if(!item)return;
+      var sig=[item.student,item.text||item.detail||'',item.date,item.ts||'',item.cat||'',item.ci].join('|');
+      if(seen[sig])return;
+      seen[sig]=true;out.push(item);
+    });
+    DB[f]=out;
   });
   if(remote.feedback){DB.feedback=Object.assign({},remote.feedback||{},DB.feedback||{});}
   if(remote.students&&DB.students){
     var localNames={};DB.students.forEach(function(s){if(s&&s.name)localNames[s.name]=true;});
     var extra=(remote.students||[]).filter(function(s){return s&&s.name&&!localNames[s.name];});
-    if(extra.length)DB.students=DB.students.concat(extra);
+    if(extra.length){DB.students=DB.students.concat(extra);hadNewContent=true;}
   }
+  return hadNewContent;
 }
 
 async function loadFromCloud(){
@@ -1431,8 +1586,38 @@ function subscribeRealtime(){
     })
     .subscribe(function(status){
       if(status==='SUBSCRIBED')setSyncStatus('synced');
-      else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'||status==='CLOSED')setSyncStatus('offline');
+      else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'||status==='CLOSED'){
+        setSyncStatus('offline');
+        // 실시간 연결이 끊기면 잠시 후 자동으로 재연결 시도 (계속 붙잡고 있지 않도록 기존 채널 정리)
+        try{supabaseClient.removeChannel(realtimeChannel);}catch(e){}
+        realtimeChannel=null;
+        setTimeout(function(){subscribeRealtime();},4000);
+      }
     });
+  startBackgroundPoll();
+}
+// 실시간 알림을 놓치는 경우(웹소켓이 조용히 끊기는 등)에 대비한 안전장치:
+// 아무 조작을 하지 않아도 주기적으로 클라우드를 확인해서, 다른 선생님이 남긴 새 기록이
+// 화면에 반영되도록 함 (대시보드를 그냥 보고만 있는 원장님 화면에도 반영되도록)
+var bgPollTimer=null;
+function startBackgroundPoll(){
+  if(bgPollTimer)return;
+  bgPollTimer=setInterval(async function(){
+    if(!supabaseClient||pushInFlight)return;
+    try{
+      var res=await supabaseClient.from('app_data').select('data').eq('id',SYNC_ROW_ID).maybeSingle();
+      var remote=res&&res.data&&res.data.data;
+      if(!remote||!remote.schedule)return;
+      var remoteTs=remote.updatedAt||0;
+      if(remoteTs>(lastAppliedUpdatedAt||0)){
+        lastAppliedUpdatedAt=remoteTs;
+        var hadNewContent=mergeRemoteIntoLocal(remote);
+        try{localStorage.setItem('jm_v2',JSON.stringify(DB));}catch(e){}
+        if(hadNewContent){refreshEntireUI();}
+        setSyncStatus('synced');
+      }
+    }catch(e){/* 조용히 무시 — 다음 주기에 다시 시도 */}
+  },20000);
 }
 
 function nl2br(s){return (s==null?'':String(s)).replace(/\n/g,'<br>');}
@@ -1507,7 +1692,11 @@ function goPage(page, btn){
 function refreshPage(page){
   if(page==='dash')renderDash();
   if(page==='students'){fillAllSelects();renderStuSubjTabs();renderStudentList('');}
-  if(page==='sched')renderSchedTable();
+  if(page==='sched'){
+    var mt=document.getElementById('merge-toggle');
+    if(mt)mt.checked=(DB.scheduleMergeConsecutive!==false);
+    renderSchedTable();
+  }
   if(page==='att'){fillAllSelects();renderAttSummary();}
   if(page==='study'){if(typeof refreshStudyPage==='function')refreshStudyPage();else fillAllSelects();}
   if(page==='report'){fillAllSelects();renderReport();}
@@ -1568,6 +1757,7 @@ function renderDash(){
       document.getElementById('stat-att').textContent='—';
     }catch(e){}
     try{renderWarnList((DB.vocabRecords||[]).filter(function(v){return v.retest==='yes';}));}catch(e){}
+    try{renderTodayMemoFeed();}catch(e){}
     try{renderDashMakeup();}catch(e){}
     try{renderDashSchedSummary();}catch(e){}
     try{renderSubjView();}catch(e){console.warn('과목별 뷰 에러',e.message);}
@@ -1621,6 +1811,7 @@ function renderDash(){
     setTimeout(function(){try{renderTodayAttList(dayArr, dayData);}catch(e2){console.error('재시도 실패:',e2);}},300);
   }
   try{renderWarnList(retest);}catch(e){}
+  try{renderTodayMemoFeed();}catch(e){}
   try{renderDashMakeup();}catch(e){}
   try{renderDashSchedSummary();}catch(e){console.warn('시간표 에러',e.message);}
   try{renderSubjView();}catch(e){console.warn('과목별 뷰 에러',e.message);}
@@ -1764,7 +1955,7 @@ function renderTodayAttList(students, day){
     });
 
     // 학습기록 메모
-    try{if(typeof buildDashMemoSection==='function')buildDashMemoSection(body,dk,gTime,gCi,gStu,td,gSubj);}catch(e){}
+    try{if(typeof buildDashMemoSection==='function')buildDashMemoSection(body,dk,gTime,gCi,gStu,td,gSubj,'time');}catch(e){}
 
     sec.appendChild(hdr);
     sec.appendChild(body);
@@ -1783,6 +1974,43 @@ function setAtt2(name,date,val,btn){
     });
   }
   save();
+}
+var curFeedFilter='all';
+function filterTodayMemoFeed(f,btn){
+  curFeedFilter=f;
+  document.querySelectorAll('#today-memo-feed').forEach(function(){}); // no-op, keeps pattern consistent
+  var bar=btn&&btn.parentElement;
+  if(bar)Array.prototype.forEach.call(bar.querySelectorAll('.filter-tab'),function(b){b.classList.remove('on');});
+  if(btn)btn.classList.add('on');
+  renderTodayMemoFeed();
+}
+function renderTodayMemoFeed(){
+  var el=document.getElementById('today-memo-feed');if(!el)return;
+  var td=(typeof dashDateStr==='function')?dashDateStr():'';
+  var items=(DB.classMemos||[]).filter(function(m){
+    if(m.date!==td)return false;
+    if(curFeedFilter!=='all'&&m.cat!==curFeedFilter)return false;
+    return true;
+  }).sort(function(a,b){return (b.id||0)-(a.id||0);}); // 텍스트(9:47 vs 14:55) 비교가 아니라 생성 순서(id, 실제 시간 기반)로 정렬
+  el.innerHTML='';
+  if(!items.length){el.innerHTML='<div style="padding:16px;text-align:center;color:var(--t3);font-size:13px">오늘 등록된 기록 없음</div>';return;}
+  items.forEach(function(m){
+    var isWarn=m.cat==='warn';
+    var row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:flex-start;gap:8px;padding:8px 14px;border-bottom:1px solid var(--border)';
+    var av=document.createElement('div');av.style.cssText='width:26px;height:26px;border-radius:50%;background:'+(m.student?avatarColor(m.student):'var(--t3)')+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0';av.textContent=m.student?m.student[0]:'전';
+    var cont=document.createElement('div');cont.style.cssText='flex:1;min-width:0';
+    var top=document.createElement('div');top.style.cssText='display:flex;align-items:center;gap:6px;flex-wrap:wrap';
+    var nm=document.createElement('span');nm.style.cssText='font-size:12px;font-weight:700;color:var(--t1)';nm.textContent=m.student||'전체';
+    var tag=document.createElement('span');tag.style.cssText='font-size:10px;font-weight:700;padding:1px 7px;border-radius:9px;background:'+(isWarn?'var(--red-s)':'var(--green-s)')+';color:'+(isWarn?'var(--red)':'var(--green)');tag.textContent=isWarn?'⚠️ 주의':'👍 칭찬';
+    var subj=document.createElement('span');subj.style.cssText='font-size:11px;color:var(--t3)';subj.textContent=m.subject||'';
+    top.appendChild(nm);top.appendChild(tag);if(m.subject)top.appendChild(subj);
+    var txt=document.createElement('div');txt.style.cssText='font-size:12px;color:var(--t1);margin-top:2px;word-break:break-word';txt.textContent=m.text;
+    var ts=document.createElement('div');ts.style.cssText='font-size:10px;color:var(--t3);margin-top:2px';ts.textContent=m.ts||'';
+    cont.appendChild(top);cont.appendChild(txt);cont.appendChild(ts);
+    row.appendChild(av);row.appendChild(cont);
+    el.appendChild(row);
+  });
 }
 function renderWarnList(retest){
   var list=document.getElementById('warn-list');
@@ -1876,7 +2104,7 @@ function renderWarnList(retest){
     return;
   }
 
-  items.slice(0,10).forEach(function(item){
+  items.forEach(function(item){
     var row=document.createElement('div');
     row.style.cssText='display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);cursor:pointer';
     row.onclick=function(){
@@ -1910,7 +2138,7 @@ function renderDashMakeup(){
     var info=document.createElement('div');info.className='warn-info';
     info.innerHTML='<div class="warn-name">'+m.student+(m.subject?' <span style="font-size:10px;color:var(--t3)">['+m.subject+']</span>':'')+'</div><div class="warn-sub">'+m.detail+' · '+m.date+'</div>';
     var btn=document.createElement('button');btn.className='btn btn-green btn-xs';btn.textContent='완료';
-    btn.onclick=(function(idx){return function(){DB.makeups.splice(idx,1);save();renderDashMakeup();};})(i);
+    btn.onclick=(function(idx){return function(){tombstone('makeups',DB.makeups[idx]&&DB.makeups[idx].id);DB.makeups.splice(idx,1);save();renderDashMakeup();};})(i);
     row.appendChild(info);row.appendChild(btn);list.appendChild(row);
   });
 }
@@ -2157,8 +2385,8 @@ function showStudentProfile(name){
   var avgScore=vocabs.length?Math.round(vocabs.reduce(function(s,v){return s+v.score;},0)/vocabs.length):0;
   // 학습메모
   var memos=(DB.classMemos||[]).filter(function(m){return m.student===name;});
-  var warnMemos=memos.filter(function(m){return m.cat==='warn';}).slice(0,3);
-  var praiseMemos=memos.filter(function(m){return m.cat==='praise';}).slice(0,3);
+  var warnMemos=memos.filter(function(m){return m.cat==='warn';});
+  var praiseMemos=memos.filter(function(m){return m.cat==='praise';});
   // 피드백
   var fb=(DB.feedback&&DB.feedback['feedback_'+name])||{};
 
@@ -2246,16 +2474,46 @@ function showStudentProfile(name){
   // 학습메모
   if(warnMemos.length||praiseMemos.length){
     var memoCard=document.createElement('div');memoCard.className='card';memoCard.style.marginBottom='14px';
-    memoCard.innerHTML='<div class="card-head"><span class="card-title">📋 학습 메모</span></div><div class="card-body">';
+    var mHead=document.createElement('div');mHead.className='card-head';mHead.innerHTML='<span class="card-title">📋 학습 메모</span>';
+    var mBody=document.createElement('div');mBody.className='card-body';
+    memoCard.appendChild(mHead);memoCard.appendChild(mBody);
+    function buildProfileMemoRow(m){
+      var row=document.createElement('div');
+      row.style.cssText='display:flex;align-items:flex-start;gap:6px;padding:5px 0;border-bottom:1px solid var(--border)';
+      var dateSpan=document.createElement('span');dateSpan.style.cssText='font-size:11px;color:var(--t3);flex-shrink:0;white-space:nowrap;padding-top:1px';dateSpan.textContent=m.date||'';
+      var txtEl=document.createElement('div');txtEl.style.cssText='font-size:12px;color:var(--t1);flex:1;cursor:pointer;word-break:break-word';txtEl.textContent=m.text;txtEl.title='클릭해서 수정';
+      txtEl.onclick=function(){
+        var ta2=document.createElement('textarea');
+        ta2.value=m.text;ta2.style.cssText='width:100%;font-size:12px;padding:5px;border:1px solid var(--accent);border-radius:5px;resize:vertical';ta2.rows=2;
+        txtEl.replaceWith(ta2);ta2.focus();
+        var commit=function(){
+          var v=ta2.value.trim();
+          if(v&&v!==m.text){m.text=v;save();}
+          showStudentProfile(name);
+        };
+        ta2.onblur=commit;
+        ta2.onkeydown=function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();ta2.blur();}};
+      };
+      var delBtn=document.createElement('button');delBtn.textContent='×';delBtn.style.cssText='border:none;background:none;color:var(--t3);cursor:pointer;font-size:14px;flex-shrink:0;padding:0 2px';
+      delBtn.onclick=function(){
+        var idx=DB.classMemos.indexOf(m);
+        if(idx>=0){tombstone('classMemos',m.id);DB.classMemos.splice(idx,1);save();}
+        showStudentProfile(name);
+      };
+      row.appendChild(dateSpan);row.appendChild(txtEl);row.appendChild(delBtn);
+      return row;
+    }
     if(warnMemos.length){
-      memoCard.innerHTML+='<div style="font-size:12px;font-weight:600;color:var(--red);margin-bottom:5px">⚠️ 주의사항</div>';
-      warnMemos.forEach(function(m){memoCard.innerHTML+='<div style="font-size:12px;padding:4px 0;border-bottom:1px solid var(--border);color:var(--t1)"><span style="color:var(--t3);margin-right:6px">'+m.date+'</span>'+m.text+'</div>';});
+      var wLbl=document.createElement('div');wLbl.style.cssText='font-size:12px;font-weight:600;color:var(--red);margin-bottom:5px';wLbl.textContent='⚠️ 주의사항';
+      mBody.appendChild(wLbl);
+      warnMemos.forEach(function(m){mBody.appendChild(buildProfileMemoRow(m));});
     }
     if(praiseMemos.length){
-      memoCard.innerHTML+='<div style="font-size:12px;font-weight:600;color:var(--green);margin:8px 0 5px">👍 칭찬할점</div>';
-      praiseMemos.forEach(function(m){memoCard.innerHTML+='<div style="font-size:12px;padding:4px 0;border-bottom:1px solid var(--border);color:var(--t1)"><span style="color:var(--t3);margin-right:6px">'+m.date+'</span>'+m.text+'</div>';});
+      var pLbl=document.createElement('div');pLbl.style.cssText='font-size:12px;font-weight:600;color:var(--green);margin:8px 0 5px';pLbl.textContent='👍 칭찬할점';
+      mBody.appendChild(pLbl);
+      praiseMemos.forEach(function(m){mBody.appendChild(buildProfileMemoRow(m));});
     }
-    memoCard.innerHTML+='</div>';panel.appendChild(memoCard);
+    panel.appendChild(memoCard);
   }
 
   // 상담 기록 (학습관리 상담기록과 동일 데이터)
@@ -2274,7 +2532,7 @@ function showStudentProfile(name){
       var del=document.createElement('button');del.className='btn btn-gray btn-xs';del.textContent='삭제';del.style.marginLeft='auto';
       del.onclick=function(){
         if(!confirm('이 상담 기록을 삭제할까요?'))return;
-        DB.counsels=DB.counsels.filter(function(x){return x.id!==m.id;});
+        tombstone('counsels',m.id);DB.counsels=DB.counsels.filter(function(x){return x.id!==m.id;});
         save();showStudentProfile(name);
       };
       head2.appendChild(del);
@@ -2339,26 +2597,72 @@ function selSchedDay(i,btn){
   document.getElementById('sched-card-title').textContent=DKKO[i]+' 수업표';
   renderSchedTable();
 }
+function arraysEqualAsSet(a,b){
+  if(!a||!b)return false;
+  if(a.length!==b.length)return false;
+  var sa=a.slice().sort().join('|'),sb=b.slice().sort().join('|');
+  return sa===sb;
+}
+function toggleMergeConsecutive(checked){
+  DB.scheduleMergeConsecutive=checked;
+  save();
+  renderSchedTable();
+}
 function renderSchedTable(){
   var dk =DKEYS[curSchedDay];var day =DB.schedule[dk];
   var tbl2=document.getElementById('sched-table');tbl2.innerHTML='';
   var thead=document.createElement('thead');
   thead.innerHTML='<tr><th>시간</th>'+day.cols.map(function(c){return '<th>'+c+'</th>';}).join('')+'</tr>';
   tbl2.appendChild(thead);
+
+  // 같은 칸(과목)에서 연속된 시간대에 학생 명단이 완전히 같으면 "연강"으로 보고 시각적으로 합칠 위치를 미리 계산
+  var mergeSpan={},mergeSkip={},mergeGroup={};
+  if(DB.scheduleMergeConsecutive!==false){
+  day.cols.forEach(function(colName,ci){
+    if(!colName)return;
+    var ri=0;
+    while(ri<day.rows.length){
+      var cellArr=day.rows[ri].cells[ci];
+      if(!cellArr||!cellArr.length){ri++;continue;}
+      var span=1;
+      while(ri+span<day.rows.length&&arraysEqualAsSet(day.rows[ri+span].cells[ci],cellArr)){span++;}
+      if(span>1){
+        mergeSpan[ri+'-'+ci]=span;
+        var grp=[];for(var k=0;k<span;k++)grp.push(ri+k);
+        for(var k2=0;k2<span;k2++){
+          mergeGroup[(ri+k2)+'-'+ci]=grp;
+          if(k2>0)mergeSkip[(ri+k2)+'-'+ci]=true;
+        }
+      }
+      ri+=span;
+    }
+  });
+  }
+
   var tbody=document.createElement('tbody');
   day.rows.forEach(function(row,ri){
     var tr =document.createElement('tr');
     var timeTd =document.createElement('td');timeTd.textContent=row.t;tr.appendChild(timeTd);
     row.cells.forEach(function(stu,ci){
+      var key=ri+'-'+ci;
+      if(mergeSkip[key])return; // 연강 두번째 시간대 이후는 위 칸에 합쳐져서 별도 셀을 그리지 않음
       var td =document.createElement('td');td.style.verticalAlign='top';
+      var span=mergeSpan[key];
+      if(span)td.rowSpan=span;
       if(stu&&stu.length){
         td.className='has-s';td.style.cursor='pointer';
+        if(span){
+          var badge=document.createElement('div');
+          badge.style.cssText='font-size:10px;font-weight:700;color:var(--accent);background:var(--accent-s);border-radius:4px;padding:1px 6px;display:inline-block;margin-bottom:3px';
+          badge.textContent='⏱ '+span+'시간 연강';
+          td.appendChild(badge);
+        }
         var chipWrap =document.createElement('div');chipWrap.style.cssText='display:flex;flex-wrap:wrap;gap:2px;margin-bottom:3px;pointer-events:none';
         stu.forEach(function(n){var sp =document.createElement('span');sp.className='chip2 '+CCLS[ci%CCLS.length];sp.textContent=n;chipWrap.appendChild(sp);});
         var editBtn =document.createElement('button');
         editBtn.style.cssText='font-size:10px;padding:2px 6px;border-radius:4px;border:1px solid var(--border);background:var(--s2);color:var(--t2);cursor:pointer;width:100%;pointer-events:auto';
         editBtn.textContent='✏️ 추가·삭제';
-        editBtn.onclick=function(e){e.stopPropagation();openClsModal(curSchedDay,ri,ci,true);};
+        editBtn.onclick=function(e){e.stopPropagation();openClsModal(curSchedDay,ri,ci,true,mergeGroup[key]);};
         td.onclick=function(){openAttModal(dk,ri,ci,day.cols[ci],stu,row.t);};
         td.appendChild(chipWrap);td.appendChild(editBtn);
       } else if(day.cols[ci]){
@@ -2438,7 +2742,7 @@ function openAttModal(dk,ri,ci,subject,stu,time){
     var student=ms.value||'';var text=mt.value.trim();
     if(!text){toast('내용을 입력해주세요');return;}
     if(!DB.classMemos)DB.classMemos=[];
-    DB.classMemos.push({dk:dk,time:time,ci:ci,student:student,text:text,cat:selCat,subject:subject||'',ts:nowHM(),date:todayStr()});
+    DB.classMemos.push({id:uid++,dk:dk,time:time,ci:ci,student:student,text:text,cat:selCat,subject:subject||'',ts:nowHM(),date:todayStr()});
     save();mt.value='';renderModalMemoList(dk,time,ci);renderWarnListOnly();toast('기록 추가 완료');
   };
   mr.appendChild(ms);mr.appendChild(mt);mr.appendChild(ab);s2.appendChild(mr);body.appendChild(s2);
@@ -2456,7 +2760,7 @@ function addMakeupFromModal(){
   var s=document.getElementById('mk-stu-sel').value;
   var d=document.getElementById('mk-detail').value.trim();
   if(!s||!d){toast('학생과 일정을 입력해주세요');return;}
-  DB.makeups.push({student:s,detail:d,date:todayKo()});
+  DB.makeups.push({id:uid++,student:s,detail:d,date:todayKo()});
   save();toast(`${s} 보강 등록 완료`);
   document.getElementById('mk-detail').value='';
 }
@@ -2464,15 +2768,18 @@ function saveAttModal(){closeModal('modal-att');toast('출결 저장 완료');}
 
 // ── 반 편집 모달 ──
 let _clsEditStu=[];
-function openClsModal(dayIdx,rowIdx,colIdx,isEdit){
-  clsModalData={dayIdx,rowIdx,colIdx};
+function openClsModal(dayIdx,rowIdx,colIdx,isEdit,mergeRowIndices){
+  clsModalData={dayIdx,rowIdx,colIdx,mergeRowIndices:(mergeRowIndices&&mergeRowIndices.length>1)?mergeRowIndices:null};
   const dk=DKEYS[dayIdx];const day=DB.schedule[dk];
   var row=day.rows[rowIdx];
   _clsEditStu=[...(row.cells[colIdx]||[])];
-  document.getElementById('modal-cls-title').textContent=`${DKKO[dayIdx]} ${row.t} · ${day.cols[colIdx]||''} 반 편집`;
+  var isMerge=clsModalData.mergeRowIndices;
+  var timeLabel=isMerge?(day.rows[isMerge[0]].t+'~'+day.rows[isMerge[isMerge.length-1]].t+' ('+isMerge.length+'시간 연강)'):row.t;
+  document.getElementById('modal-cls-title').textContent=`${DKKO[dayIdx]} ${timeLabel} · ${day.cols[colIdx]||''} 반 편집`;
   const body=document.getElementById('modal-cls-body');
   const allStu=getAllStu();
   body.innerHTML=`
+  ${isMerge?'<div style="font-size:12px;color:var(--accent);background:var(--accent-s);padding:8px 10px;border-radius:8px;margin-bottom:10px">⏱ 연강 수업입니다 — 여기서 수정하면 '+isMerge.length+'개 시간대(' +timeLabel+ ')에 동일하게 적용됩니다.</div>':''}
   <div style="margin-bottom:12px">
     <div style="font-size:12px;font-weight:600;color:var(--t2);margin-bottom:6px">현재 학생 (탭하여 제거)</div>
     <div id="cls-cur-chips" style="display:flex;flex-wrap:wrap;gap:5px;min-height:36px;padding:8px;background:var(--s2);border-radius:8px"></div>
@@ -2573,7 +2880,15 @@ function saveClsModal(){
     if(row){row.cells[ci]=[...new Set([...(row.cells[ci]||[]),...checked])];}
     else{const nc=day.cols.map(function(){return [];});nc[ci]=checked;day.rows.push({t,cells:nc});day.rows.sort((a,b)=>a.t.localeCompare(b.t,undefined,{numeric:true}));}
   } else {
-    DB.schedule[DKEYS[clsModalData.dayIdx]].rows[clsModalData.rowIdx].cells[clsModalData.colIdx]=[..._clsEditStu,...checked];
+    var finalList=[..._clsEditStu,...checked];
+    var dk2=DKEYS[clsModalData.dayIdx];
+    if(clsModalData.mergeRowIndices){
+      clsModalData.mergeRowIndices.forEach(function(rIdx){
+        DB.schedule[dk2].rows[rIdx].cells[clsModalData.colIdx]=[...finalList];
+      });
+    }else{
+      DB.schedule[dk2].rows[clsModalData.rowIdx].cells[clsModalData.colIdx]=finalList;
+    }
   }
   save();closeModal('modal-cls');renderSchedTable();renderSettingsClsList();fillAllSelects();toast('저장 완료!');
 }
@@ -2709,7 +3024,7 @@ function saveCalEvent(){
 function deleteCalEvent(){
   if(!calEditId)return;
   if(!confirm('이 일정을 삭제할까요?'))return;
-  DB.academicEvents=(DB.academicEvents||[]).filter(function(e){return e.id!==calEditId;});
+  tombstone('academicEvents',calEditId);DB.academicEvents=(DB.academicEvents||[]).filter(function(e){return e.id!==calEditId;});
   save();closeModal('modal-cal-event');renderCalendar();toast('일정 삭제 완료');
 }
 function renderCalEventList(){
@@ -2799,7 +3114,7 @@ function cycleTaskStatus(id){
 }
 function deleteTask2(id){
   if(!confirm('이 항목을 삭제할까요?'))return;
-  DB.academyTasks=(DB.academyTasks||[]).filter(function(x){return x.id!==id;});
+  tombstone('academyTasks',id);DB.academyTasks=(DB.academyTasks||[]).filter(function(x){return x.id!==id;});
   save();renderTaskList2();
 }
 function renderTaskList2(){
@@ -3362,7 +3677,7 @@ function addDashMakeup(){
   var subj=document.getElementById('dash-mk-subj')?.value||'';
   if(!s){toast('학생을 선택해주세요');return;}
   if(!d){toast('보강 일정을 입력해주세요');return;}
-  DB.makeups.push({student:s,detail:d,subject:subj,date:todayKo()});
+  DB.makeups.push({id:uid++,student:s,detail:d,subject:subj,date:todayKo()});
   save();
   if(document.getElementById('dash-mk-det'))document.getElementById('dash-mk-det').value='';
   if(document.getElementById('dash-mk-stu'))document.getElementById('dash-mk-stu').value='';
@@ -3386,11 +3701,12 @@ function addTestRecord2(){
   renderTestList2();renderWarnListOnly();toast(type+' 기록 추가 완료');
 }
 
-function buildDashMemoSection(body,gdk,gtime,gci,gStudents,td,gsubject){
+function buildDashMemoSection(body,gdk,gtime,gci,gStudents,td,gsubject,viewScope){
+  var dayWide=(viewScope==='subj'); // 과목별 화면에서는 특정 시간대가 아니라 그 과목의 오늘 전체 기록을 보여줌
   var memoSec=document.createElement('div');
   memoSec.className='cls-memo-section';
   memoSec.style.cssText='border-top:2px dashed var(--border);padding:10px 14px;background:#f8f9ff';
-  var title=document.createElement('div');title.className='cls-memo-title';title.textContent='📋 학습 기록';
+  var title=document.createElement('div');title.className='cls-memo-title';title.textContent=dayWide?'📋 오늘 학습 기록':'📋 학습 기록';
   memoSec.appendChild(title);
   var catWrap=document.createElement('div');catWrap.className='memo-cat-wrap';
   var wBtn=document.createElement('button');wBtn.className='memo-cat-btn warn on';wBtn.textContent='⚠️ 주의사항';
@@ -3399,7 +3715,7 @@ function buildDashMemoSection(body,gdk,gtime,gci,gStudents,td,gsubject){
   wBtn.onclick=function(){state.cat='warn';wBtn.classList.add('on');pBtn.classList.remove('on');};
   pBtn.onclick=function(){state.cat='praise';pBtn.classList.add('on');wBtn.classList.remove('on');};
   catWrap.appendChild(wBtn);catWrap.appendChild(pBtn);memoSec.appendChild(catWrap);
-  var listId='dash-memo-'+gtime+'-'+gci;
+  var listId='dash-memo-'+(viewScope||'x')+'-'+gtime+'-'+gci;
   var memoList=document.createElement('div');memoList.className='cls-memo-list';memoList.id=listId;
   memoSec.appendChild(memoList);
   var inputRow=document.createElement('div');inputRow.className='cls-memo-input-row';
@@ -3410,13 +3726,13 @@ function buildDashMemoSection(body,gdk,gtime,gci,gStudents,td,gsubject){
   addBtn.onclick=function(){
     var text=ta.value.trim();if(!text){toast('내용을 입력해주세요');return;}
     if(!DB.classMemos)DB.classMemos=[];
-    DB.classMemos.push({dk:gdk,time:gtime,ci:gci,student:stuSel.value||'',text:text,cat:state.cat,subject:gsubject||'',ts:nowHM(),date:td});
-    save();ta.value='';renderDashMemoList(listId,gdk,gtime,gci);renderWarnListOnly();
+    DB.classMemos.push({id:uid++,dk:gdk,time:gtime,ci:gci,student:stuSel.value||'',text:text,cat:state.cat,subject:gsubject||'',ts:nowHM(),date:td});
+    save();ta.value='';renderDashMemoList(listId,gdk,gtime,gci,dayWide,td,gsubject);renderWarnListOnly();
     toast((state.cat==='warn'?'⚠️ 주의사항':'👍 칭찬할점')+' 추가 완료');
   };
   inputRow.appendChild(stuSel);inputRow.appendChild(ta);inputRow.appendChild(addBtn);
   memoSec.appendChild(inputRow);body.appendChild(memoSec);
-  renderDashMemoList(listId,gdk,gtime,gci);
+  renderDashMemoList(listId,gdk,gtime,gci,dayWide,td,gsubject);
 }
 
 function changeDashDate(delta){
@@ -3565,10 +3881,17 @@ function openProgModal2(){
 
 function refreshStudyPage(){selStudySubj(curStudySubj,document.getElementById('sbtn-'+curStudySubj));}
 
-function renderDashMemoList(listId,dk,time,ci){
+function renderDashMemoList(listId,dk,time,ci,dayWide,td,subjectStr){
   var list=document.getElementById(listId);if(!list)return;
   if(!DB.classMemos)DB.classMemos=[];
-  var memos=DB.classMemos.filter(function(m){return m.dk===dk&&m.time===time&&m.ci===ci;});
+  var memos=dayWide
+    ? DB.classMemos.filter(function(m){
+        if(m.date!==td)return false;
+        if(m.ci===ci)return true; // 정상적으로 ci가 일치하는 경우
+        if(subjectStr&&m.subject&&m.subject===subjectStr)return true; // ci가 예전 기록이라 안 맞아도 과목명으로 매칭
+        return false;
+      }).sort(function(a,b){return (b.id||0)-(a.id||0);})
+    : DB.classMemos.filter(function(m){return m.dk===dk&&m.time===time&&m.ci===ci;});
   list.innerHTML='';
   if(!memos.length){list.innerHTML='<div style="font-size:12px;color:var(--t3);padding:3px 0">아직 기록 없음</div>';return;}
   memos.forEach(function(m){
@@ -3580,10 +3903,30 @@ function renderDashMemoList(listId,dk,time,ci){
     var tag=document.createElement('span');tag.className='memo-cat-tag '+(m.cat==='warn'?'memo-cat-tag-warn':'memo-cat-tag-praise');tag.textContent=m.cat==='warn'?'⚠️ 주의':'👍 칭찬';
     topRow.appendChild(nm);topRow.appendChild(tag);
     var txt=document.createElement('div');txt.className='cls-memo-text';txt.textContent=m.text;
+    txt.style.cursor='pointer';txt.title='클릭해서 수정';
     var ts=document.createElement('div');ts.className='cls-memo-time';ts.textContent=(m.date||'')+' '+(m.ts||'');
     cont.appendChild(topRow);cont.appendChild(txt);cont.appendChild(ts);
+    (function(memo,txtEl){
+      txtEl.onclick=function(){
+        var ta2=document.createElement('textarea');
+        ta2.value=memo.text;ta2.style.cssText='width:100%;font-size:12px;padding:5px;border:1px solid var(--accent);border-radius:5px;resize:vertical;margin:2px 0';ta2.rows=2;
+        txtEl.replaceWith(ta2);ta2.focus();
+        var commit=function(){
+          var v=ta2.value.trim();
+          if(v&&v!==memo.text){memo.text=v;save();}
+          renderDashMemoList(listId,dk,time,ci,dayWide,td,subjectStr);
+        };
+        ta2.onblur=commit;
+        ta2.onkeydown=function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();ta2.blur();}};
+      };
+    })(m,txt);
     var del=document.createElement('button');del.className='cls-memo-del';del.textContent='×';
-    (function(memo){del.onclick=function(){var idx=DB.classMemos.indexOf(memo);if(idx>=0)DB.classMemos.splice(idx,1);save();renderDashMemoList(listId,dk,time,ci);};})(m);
+    (function(memo){del.onclick=function(){
+      var idx=DB.classMemos.indexOf(memo);
+      if(idx>=0){tombstone('classMemos',memo.id);DB.classMemos.splice(idx,1);}
+      save();renderDashMemoList(listId,dk,time,ci,dayWide,td,subjectStr);
+      try{renderTodayMemoFeed();}catch(e){}
+    };})(m);
     item.appendChild(av);item.appendChild(cont);item.appendChild(del);list.appendChild(item);
   });
 }
@@ -3603,10 +3946,25 @@ function renderModalMemoList(dk,time,ci){
     var tag=document.createElement('span');tag.className='memo-cat-tag '+(m.cat==='warn'?'memo-cat-tag-warn':'memo-cat-tag-praise');tag.textContent=m.cat==='warn'?'⚠️ 주의':'👍 칭찬';
     topRow.appendChild(nm);topRow.appendChild(tag);
     var txt=document.createElement('div');txt.className='cls-memo-text';txt.textContent=m.text;
+    txt.style.cursor='pointer';txt.title='클릭해서 수정';
     var ts=document.createElement('div');ts.className='cls-memo-time';ts.textContent=(m.date||'')+' '+(m.ts||'');
     cont.appendChild(topRow);cont.appendChild(txt);cont.appendChild(ts);
+    (function(memo,txtEl){
+      txtEl.onclick=function(){
+        var ta2=document.createElement('textarea');
+        ta2.value=memo.text;ta2.style.cssText='width:100%;font-size:12px;padding:5px;border:1px solid var(--accent);border-radius:5px;resize:vertical;margin:2px 0';ta2.rows=2;
+        txtEl.replaceWith(ta2);ta2.focus();
+        var commit=function(){
+          var v=ta2.value.trim();
+          if(v&&v!==memo.text){memo.text=v;save();}
+          renderModalMemoList(dk,time,ci);
+        };
+        ta2.onblur=commit;
+        ta2.onkeydown=function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();ta2.blur();}};
+      };
+    })(m,txt);
     var del=document.createElement('button');del.className='cls-memo-del';del.textContent='×';
-    (function(memo){del.onclick=function(){var idx=DB.classMemos.indexOf(memo);if(idx>=0)DB.classMemos.splice(idx,1);save();renderModalMemoList(dk,time,ci);};})(m);
+    (function(memo){del.onclick=function(){var idx=DB.classMemos.indexOf(memo);if(idx>=0){tombstone('classMemos',memo.id);DB.classMemos.splice(idx,1);}save();renderModalMemoList(dk,time,ci);};})(m);
     item.appendChild(av);item.appendChild(cont);item.appendChild(del);list.appendChild(item);
   });
 }
@@ -3620,7 +3978,7 @@ function renderProgList2(){
   list.forEach(function(p,i){
     var div=document.createElement('div');div.className='book-item';
     div.innerHTML='<div class="book-header"><div><span class="book-name">'+p.book+'</span><span class="badge badge-blue" style="margin-left:6px">'+p.type+'</span></div>'+
-      '<button class="btn btn-gray btn-xs" onclick="DB.progs.splice('+i+',1);save();renderProgList2()">삭제</button></div>'+
+      '<button class="btn btn-gray btn-xs" onclick="tombstone(\'progs\',(DB.progs['+i+']||{}).id);DB.progs.splice('+i+',1);save();renderProgList2()">삭제</button></div>'+
       '<div style="font-size:12px;color:var(--t2);margin-bottom:5px">'+p.student+' · '+p.cur+(p.next?' → '+p.next:'')+'</div>'+
       '<div class="progress-bar"><div class="progress-fill" style="width:'+p.pct+'%"></div></div>'+
       '<div style="font-size:10px;color:var(--t3);margin-top:2px">'+p.pct+'% · '+p.date+'</div>';
@@ -3747,7 +4105,7 @@ function renderSubjNoticeGrid(groups){
           '<span style="font-size:12px;color:var(--t1);flex:1;word-break:break-word">'+m.text+'</span>'+
           '<span style="font-size:10px;color:var(--t3);flex-shrink:0">'+m.ts+'</span>';
         var delBtn=document.createElement('button');delBtn.textContent='\u00d7';delBtn.style.cssText='border:none;background:none;color:var(--t3);cursor:pointer;font-size:14px;flex-shrink:0;padding:0 2px';
-        delBtn.onclick=function(){DB.dirNotices=DB.dirNotices.filter(function(x){return x.id!==m.id;});save();renderCombinedList();};
+        delBtn.onclick=function(){tombstone('dirNotices',m.id);DB.dirNotices=DB.dirNotices.filter(function(x){return x.id!==m.id;});save();renderCombinedList();};
         row.appendChild(delBtn);
         combinedList.appendChild(row);
       });
@@ -3837,6 +4195,7 @@ function renderSubjView(){
       });
       panel.appendChild(dnWrap);
     }
+    // buildSubjTodayFeed 제거됨 — 아래 학습 기록 섹션이 하루 전체를 보여주도록 바뀌어 중복이라 삭제함
     sg.rows.forEach(function(rowData){
       var rh=document.createElement('div');rh.style.cssText='padding:5px 14px;background:var(--s2);border-bottom:1px solid var(--border);font-size:12px;font-weight:600;color:var(--t2)';
       rh.textContent=rowData.time+' 반 ('+rowData.students.length+'명)';panel.appendChild(rh);
@@ -3872,7 +4231,7 @@ function renderSubjView(){
         panel.appendChild(row2);
       });
     });
-    buildDashMemoSection(panel,DKEYS[dayIdx],sg.rows[0]?sg.rows[0].time:'',ci,stuArr,td,sg.subject);
+    buildDashMemoSection(panel,DKEYS[dayIdx],sg.rows[0]?sg.rows[0].time:'',ci,stuArr,td,sg.subject,'subj');
     var mkSec=document.createElement('div');mkSec.style.cssText='padding:10px 14px;border-top:1px solid var(--border);background:var(--amber-s)';
     mkSec.innerHTML='<div style="font-size:12px;font-weight:700;color:var(--amber);margin-bottom:7px">🔁 보강 등록</div>';
     var mkRow2=document.createElement('div');mkRow2.style.cssText='display:flex;gap:5px;flex-wrap:wrap';
@@ -3884,7 +4243,7 @@ function renderSubjView(){
     mkBtn2.onclick=(function(subj){return function(){
       var s=mkStu2.value;var d=mkDet2.value.trim();
       if(!s||!d){toast('학생과 일정을 입력해주세요');return;}
-      DB.makeups.push({student:s,detail:d,subject:subj,date:todayKo()});
+      DB.makeups.push({id:uid++,student:s,detail:d,subject:subj,date:todayKo()});
       save();mkDet2.value='';mkStu2.value='';renderDashMakeup();toast(s+' 보강 등록 완료');
     };})(sg.subject);
     mkRow2.appendChild(mkStu2);mkRow2.appendChild(mkDet2);mkRow2.appendChild(mkBtn2);
@@ -3918,7 +4277,7 @@ function renderTestList2(){
   });
 }
 
-function renderWarnListOnly(){var retest=DB.vocabRecords.filter(function(v){return v.retest==='yes';});renderWarnList(retest);}
+function renderWarnListOnly(){var retest=DB.vocabRecords.filter(function(v){return v.retest==='yes';});renderWarnList(retest);try{renderTodayMemoFeed();}catch(e){}}
 
 function getWeekLabelSingle(dateStr){
   if(!dateStr)return '이전 기록';
@@ -3971,7 +4330,7 @@ function renderWeeklyFeedbackList(name,idPrefix){
       '<span style="font-size:10px;color:var(--t3);flex-shrink:0">'+(w.date||'')+'</span>';
     var del=document.createElement('button');del.textContent='×';del.style.cssText='border:none;background:none;color:var(--t3);cursor:pointer;font-size:14px;flex-shrink:0';
     del.onclick=function(){
-      DB.weeklyFeedback=DB.weeklyFeedback.filter(function(x){return x.id!==w.id;});
+      tombstone('weeklyFeedback',w.id);DB.weeklyFeedback=DB.weeklyFeedback.filter(function(x){return x.id!==w.id;});
       save();renderWeeklyFeedbackList(name,idPrefix);
     };
     row.appendChild(del);
@@ -4217,7 +4576,7 @@ function renderCounselList2(){
     delBtn.className='btn btn-gray btn-xs';delBtn.textContent='삭제';delBtn.style.marginLeft='auto';
     delBtn.onclick=function(){
       if(!confirm('이 상담 기록을 삭제할까요?'))return;
-      DB.counsels=DB.counsels.filter(function(x){return x.id!==m.id;});
+      tombstone('counsels',m.id);DB.counsels=DB.counsels.filter(function(x){return x.id!==m.id;});
       save();renderCounselList2();
     };
     head.appendChild(delBtn);
