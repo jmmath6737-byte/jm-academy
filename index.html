@@ -232,6 +232,11 @@ button,select,input,textarea{font-family:inherit}
 .chip2{display:inline-flex;align-items:center;gap:2px;font-size:10px;padding:2px 5px;border-radius:3px;font-weight:500;margin:1px;white-space:nowrap}
 .chip2.m1{background:var(--m1);color:var(--m1t)}.chip2.m2{background:var(--m2);color:var(--m2t)}
 .chip2.en{background:var(--en);color:var(--ent)}.chip2.ko{background:var(--ko);color:var(--kot)}
+.sched-table-all{min-width:900px}
+.sched-table-all th,.sched-table-all td{padding:4px 5px;min-width:64px}
+.sched-table-all td:first-child{min-width:44px}
+.sched-table-all thead tr:first-child th{position:sticky;top:0;z-index:2}
+.sched-table-all thead tr:nth-child(2) th{position:sticky;top:24px;z-index:2;background:var(--s2)}
 
 /* 리포트 */
 .report-card{background:var(--navy);color:#fff;border-radius:var(--r);padding:20px;margin-bottom:14px}
@@ -597,9 +602,10 @@ button,select,input,textarea{font-family:inherit}
           <input type="checkbox" id="merge-toggle" checked onchange="toggleMergeConsecutive(this.checked)" style="cursor:pointer">
           연강 자동 합치기
         </label>
+        <button class="btn btn-sm" id="sched-viewall-btn" style="background:var(--s2);color:var(--t2)" onclick="toggleSchedViewAll()">📋 전체보기</button>
         <button class="btn btn-blue btn-sm" onclick="openAddClsModal()">+ 반 추가</button>
       </div>
-      <div class="sched-grid2"><table class="sched-table" id="sched-table"></table></div>
+      <div class="sched-grid2" id="sched-grid2"><table class="sched-table" id="sched-table"></table></div>
     </div>
   </div>
 
@@ -1117,7 +1123,7 @@ let DB = {
   todos: []
 };
 
-let curPage='dash', curSchedDay=0, curSettingsDay=0, curStuId=null;
+let curPage='dash', curSchedDay=0, curSettingsDay=0, curStuId=null, schedShowAll=false;
 let editStudentId=null, attModalData=null, clsModalData=null;
 let stuGradeFilter='';
 let stuSubjFilter='';
@@ -2622,8 +2628,22 @@ function globalSearch(q){
 // ════════════════════════════════════════
 function selSchedDay(i,btn){
   curSchedDay=i;
+  schedShowAll=false;
+  var vb=document.getElementById('sched-viewall-btn');
+  if(vb){vb.textContent='📋 전체보기';vb.style.background='var(--s2)';vb.style.color='var(--t2)';}
   document.querySelectorAll('#sched-day-bar .day-tab2').forEach((b,j)=>b.classList.toggle('on',j===i));
   document.getElementById('sched-card-title').textContent=DKKO[i]+' 수업표';
+  renderSchedTable();
+}
+function toggleSchedViewAll(){
+  schedShowAll=!schedShowAll;
+  var vb=document.getElementById('sched-viewall-btn');
+  if(vb){
+    if(schedShowAll){vb.textContent='📅 요일별 보기';vb.style.background='var(--navy)';vb.style.color='#fff';}
+    else{vb.textContent='📋 전체보기';vb.style.background='var(--s2)';vb.style.color='var(--t2)';}
+  }
+  document.getElementById('sched-card-title').textContent=schedShowAll?'전체 수업표 (월~일)':DKKO[curSchedDay]+' 수업표';
+  document.querySelectorAll('#sched-day-bar .day-tab2').forEach((b,j)=>b.classList.toggle('on',!schedShowAll&&j===curSchedDay));
   renderSchedTable();
 }
 function arraysEqualAsSet(a,b){
@@ -2638,8 +2658,94 @@ function toggleMergeConsecutive(checked){
   renderSchedTable();
 }
 function renderSchedTable(){
-  var dk =DKEYS[curSchedDay];var day =DB.schedule[dk];
-  var tbl2=document.getElementById('sched-table');tbl2.innerHTML='';
+  var wrap=document.getElementById('sched-grid2');
+  if(schedShowAll){
+    wrap.innerHTML='';
+    buildAllDaysUnifiedTable(wrap);
+    return;
+  }
+  wrap.innerHTML='<table class="sched-table" id="sched-table"></table>';
+  buildDayTableInto(document.getElementById('sched-table'),curSchedDay);
+}
+function parseSchedTime(t){
+  var m=/^(\d{1,2}):(\d{2})$/.exec(String(t||'').trim());
+  if(!m)return 99999;
+  var h=parseInt(m[1],10),mi=parseInt(m[2],10);
+  if(h!==12)h+=12; // 오후 시간대 기준 정렬 (정오 12:00만 예외로 가장 앞)
+  return h*60+mi;
+}
+function buildAllDaysUnifiedTable(container){
+  var dayDefs=[];
+  DKEYS.forEach(function(dk,di){
+    var day=DB.schedule[dk];if(!day)return;
+    var colIdxs=[];
+    (day.cols||[]).forEach(function(c,ci){if(c)colIdxs.push(ci);});
+    if(!colIdxs.length)return;
+    dayDefs.push({di:di,dk:dk,day:day,colIdxs:colIdxs});
+  });
+  if(!dayDefs.length){
+    container.innerHTML='<div style="padding:24px;text-align:center;color:var(--t3);font-size:13px">등록된 수업이 없습니다</div>';
+    return;
+  }
+  var timeSet={};
+  dayDefs.forEach(function(dd){(dd.day.rows||[]).forEach(function(r){if(r&&r.t)timeSet[r.t]=true;});});
+  var times=Object.keys(timeSet).sort(function(a,b){return parseSchedTime(a)-parseSchedTime(b);});
+
+  var tbl=document.createElement('table');tbl.className='sched-table sched-table-all';
+  var thead=document.createElement('thead');
+  var trDay=document.createElement('tr');
+  var thTime=document.createElement('th');thTime.rowSpan=2;thTime.textContent='시간';
+  trDay.appendChild(thTime);
+  dayDefs.forEach(function(dd){
+    var th=document.createElement('th');th.colSpan=dd.colIdxs.length;th.textContent=DKKO[dd.di];
+    th.style.cssText='background:var(--navy);color:#fff;font-size:13px;font-weight:700'+(dd.di===5?';background:var(--accent)':dd.di===6?';background:var(--red)':'');
+    trDay.appendChild(th);
+  });
+  thead.appendChild(trDay);
+  var trCol=document.createElement('tr');
+  dayDefs.forEach(function(dd){
+    dd.colIdxs.forEach(function(ci){
+      var th=document.createElement('th');th.textContent=dd.day.cols[ci];th.style.fontSize='11px';
+      trCol.appendChild(th);
+    });
+  });
+  thead.appendChild(trCol);
+  tbl.appendChild(thead);
+
+  var tbody=document.createElement('tbody');
+  times.forEach(function(t){
+    var tr=document.createElement('tr');
+    var tdT=document.createElement('td');tdT.textContent=t;
+    tdT.style.cssText='font-weight:700;text-align:center;background:var(--s2);vertical-align:middle';
+    tr.appendChild(tdT);
+    dayDefs.forEach(function(dd){
+      var rowIdx=(dd.day.rows||[]).findIndex(function(r){return r&&r.t===t;});
+      var rowObj=rowIdx>=0?dd.day.rows[rowIdx]:null;
+      dd.colIdxs.forEach(function(ci){
+        var td=document.createElement('td');td.style.verticalAlign='top';
+        var stu=rowObj?rowObj.cells[ci]:null;
+        if(stu&&stu.length){
+          td.className='has-s';td.style.cursor='pointer';
+          var wrap=document.createElement('div');wrap.style.cssText='display:flex;flex-direction:column;align-items:flex-start;gap:1px';
+          stu.forEach(function(n){var sp=document.createElement('div');sp.className='chip2 '+CCLS[ci%CCLS.length];sp.textContent=n;wrap.appendChild(sp);});
+          td.appendChild(wrap);
+          td.onclick=(function(dk,ri,ci2,colName,stuArr,tt){return function(){openAttModal(dk,ri,ci2,colName,stuArr,tt);};})(dd.dk,rowIdx,ci,dd.day.cols[ci],stu,t);
+        }else if(rowObj){
+          td.style.cssText='cursor:pointer;color:var(--t3);font-size:10px;text-align:center;padding:6px 2px;vertical-align:middle';
+          td.textContent='+';
+          td.onclick=(function(di,ri,ci2){return function(){openClsModal(di,ri,ci2,false);};})(dd.di,rowIdx,ci);
+        }
+        tr.appendChild(td);
+      });
+    });
+    tbody.appendChild(tr);
+  });
+  tbl.appendChild(tbody);
+  container.appendChild(tbl);
+}
+function buildDayTableInto(tbl2,dayIdx){
+  var dk =DKEYS[dayIdx];var day =DB.schedule[dk];
+  tbl2.innerHTML='';
   var thead=document.createElement('thead');
   thead.innerHTML='<tr><th>시간</th>'+day.cols.map(function(c){return '<th>'+c+'</th>';}).join('')+'</tr>';
   tbl2.appendChild(thead);
@@ -2691,13 +2797,13 @@ function renderSchedTable(){
         var editBtn =document.createElement('button');
         editBtn.style.cssText='font-size:10px;padding:2px 6px;border-radius:4px;border:1px solid var(--border);background:var(--s2);color:var(--t2);cursor:pointer;width:100%;pointer-events:auto';
         editBtn.textContent='✏️ 추가·삭제';
-        editBtn.onclick=function(e){e.stopPropagation();openClsModal(curSchedDay,ri,ci,true,mergeGroup[key]);};
+        editBtn.onclick=function(e){e.stopPropagation();openClsModal(dayIdx,ri,ci,true,mergeGroup[key]);};
         td.onclick=function(){openAttModal(dk,ri,ci,day.cols[ci],stu,row.t);};
         td.appendChild(chipWrap);td.appendChild(editBtn);
       } else if(day.cols[ci]){
         td.style.cssText='cursor:pointer;color:var(--t3);font-size:11px;text-align:center;padding:8px 4px;vertical-align:middle';
         td.textContent='+ 추가';
-        td.onclick=function(){openClsModal(curSchedDay,ri,ci,false);};
+        td.onclick=function(){openClsModal(dayIdx,ri,ci,false);};
       }
       tr.appendChild(td);
     });
@@ -2706,7 +2812,7 @@ function renderSchedTable(){
   var addRow =document.createElement('tr');
   var addTd =document.createElement('td');addTd.setAttribute('colspan','5');addTd.style.cssText='text-align:center;padding:8px';
   var addTimeBtn =document.createElement('button');addTimeBtn.className='btn btn-blue btn-sm';addTimeBtn.textContent='+ 시간대 추가';
-  addTimeBtn.onclick=function(){openAddClsModal();};
+  addTimeBtn.onclick=function(){openAddClsModal(dayIdx);};
   addTd.appendChild(addTimeBtn);addRow.appendChild(addTd);tbody.appendChild(addRow);
   tbl2.appendChild(tbody);
 }
@@ -2822,8 +2928,8 @@ function openClsModal(dayIdx,rowIdx,colIdx,isEdit,mergeRowIndices){
   renderClsCheckList('');
   openModal('modal-cls');
 }
-function openAddClsModal(){
-  const dayIdx=curPage==='settings'?curSettingsDay:curSchedDay;
+function openAddClsModal(forceDayIdx){
+  const dayIdx=(forceDayIdx!=null)?forceDayIdx:(curPage==='settings'?curSettingsDay:curSchedDay);
   var dk=DKEYS[dayIdx];var day=DB.schedule[dk];
   clsModalData={dayIdx,rowIdx:-1,colIdx:-1,addNew:true};_clsEditStu=[];
   document.getElementById('modal-cls-title').textContent=DKKO[dayIdx]+' 새 수업 반 추가';
