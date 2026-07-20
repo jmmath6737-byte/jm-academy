@@ -1756,6 +1756,7 @@ function enterApp(){
   document.getElementById('sidebar-user-role').textContent=currentUser.role==='director'?'원장 · 전체 권한':'담당 선생님';
   applyRolePermissions();
   updateTasksNavBadge();
+  if(currentUser.role==='director')autoConvertGoogleFormConsults();
 }
 
 function applyRolePermissions(){
@@ -1810,9 +1811,41 @@ function submitPublicApplication(){
     else{kakaoBtn.style.display='none';}
   }
 }
+function autoConvertGoogleFormConsults(){
+  var apps=DB.consultApplications||[];
+  var changed=false;
+  apps.forEach(function(a){
+    if(a.source==='googleform' && !a.taskCreated){
+      if(!DB.academyTasks)DB.academyTasks=[];
+      var contentLines=[];
+      if(a.phone)contentLines.push('학부모 연락처: '+a.phone);
+      if(a.school||a.grade)contentLines.push('학교/학년: '+((a.school||'')+' '+(a.grade||'')).trim());
+      if(a.subjectWish)contentLines.push('희망 과목: '+a.subjectWish);
+      if(a.memo)contentLines.push(a.memo);
+      DB.academyTasks.push({
+        id:uid++,
+        cat:'consult',
+        type:'신규상담',
+        date:a.date||todayKo(),
+        title:a.name+' (구글폼 상담신청)',
+        content:contentLines.join('\n'),
+        status:'대기',
+        enrolled:false,
+        ts:Date.now()
+      });
+      a.taskCreated=true;
+      changed=true;
+    }
+  });
+  if(changed){
+    save();
+    if(typeof renderTaskList2==='function'&&curTaskCat==='consult')renderTaskList2();
+  }
+}
 function renderConsultApplications(){
   var box=document.getElementById('consult-applications-box');
   if(!box)return;
+  autoConvertGoogleFormConsults();
   if(curTaskCat!=='consult'){box.style.display='none';return;}
   box.style.display='';
   var apps=(DB.consultApplications||[]).slice().sort(function(a,b){return (b.ts||0)-(a.ts||0);});
@@ -1867,6 +1900,7 @@ function playNotifySound(){
 }
 function notifyNewApplications(beforeIds){
   updateTasksNavBadge();
+  autoConvertGoogleFormConsults();
   if(!currentUser||currentUser.role!=='director')return;
   var newOnes=(DB.consultApplications||[]).filter(function(a){return !beforeIds.has(a.id);});
   if(!newOnes.length)return;
