@@ -994,27 +994,28 @@ button,select,input,textarea{font-family:inherit}
       <div class="card-head"><span class="card-title">📚 응시료·교재비 관리</span></div>
       <div class="card-body">
         <div style="font-size:12px;color:var(--t2);margin-bottom:10px;line-height:1.6">
-          월 학원비 외에 수학학력평가·한국어능력시험 같은 응시료나, 학원에서 대신 구입한 교재비를 개별로 기록합니다.
+          월 학원비 외에 수학학력평가·한국어능력시험 같은 응시료, 특강비, 학원에서 대신 구입한 교재비를 개별로 기록합니다. 먼저 항목만 등록해두고, 실제 결제되면 목록에서 "수납체크"를 눌러주세요.
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
           <select class="form-input" id="extra-pay-stu" style="flex:1;min-width:120px"><option value="">학생 선택...</option></select>
           <select class="form-input" id="extra-pay-cat" style="flex:1;min-width:100px">
             <option value="exam">응시료</option>
             <option value="material">교재비</option>
+            <option value="lecture">특강비</option>
             <option value="other">기타</option>
           </select>
-          <input type="text" class="form-input" id="extra-pay-title" placeholder="항목명 (예: 수학학력평가)" style="flex:2;min-width:160px">
+          <input type="text" class="form-input" id="extra-pay-title" placeholder="항목명 (예: 수학학력평가, 여름특강)" style="flex:2;min-width:160px">
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
           <input type="text" class="form-input" id="extra-pay-amount" placeholder="금액 (예: 15000)" style="flex:1;min-width:100px">
-          <input type="date" class="form-input" id="extra-pay-date" style="flex:1;min-width:130px">
+          <input type="date" class="form-input" id="extra-pay-date" style="flex:1;min-width:130px" title="납부일 (수납체크 시 자동으로 오늘 날짜가 들어가며, 필요하면 직접 입력해도 됩니다)">
           <select class="form-input" id="extra-pay-method" style="flex:1;min-width:100px">
             <option value="현금">현금</option>
             <option value="카드">카드</option>
             <option value="계좌이체">계좌이체</option>
             <option value="기타">기타</option>
           </select>
-          <button class="btn btn-blue" onclick="addExtraPayment()">+ 기록 추가</button>
+          <button class="btn btn-blue" id="extra-pay-submit-btn" onclick="addExtraPayment()">+ 항목 등록</button>
         </div>
         <div id="extra-pay-list"></div>
         <div id="extra-pay-total" style="font-size:12px;color:var(--t2);margin-top:8px;font-weight:600"></div>
@@ -2144,7 +2145,16 @@ function renderWithdrawStats(){
       '<span>'+s.name+'</span><span style="color:var(--t3)">'+(s.withdrawDate||'-')+'</span></div>';
   }).join('');
 }
-var EXTRA_PAY_CAT_LABELS={exam:'응시료',material:'교재비',other:'기타'};
+var EXTRA_PAY_CAT_LABELS={exam:'응시료',material:'교재비',lecture:'특강비',other:'기타'};
+var editingExtraPayId=null;
+function resetExtraPayForm(){
+  var titleEl=document.getElementById('extra-pay-title');if(titleEl)titleEl.value='';
+  var amtEl=document.getElementById('extra-pay-amount');if(amtEl)amtEl.value='';
+  var dateEl=document.getElementById('extra-pay-date');if(dateEl)dateEl.value='';
+  editingExtraPayId=null;
+  var btn=document.getElementById('extra-pay-submit-btn');
+  if(btn)btn.textContent='+ 항목 등록';
+}
 function addExtraPayment(){
   var stu=document.getElementById('extra-pay-stu').value;
   var cat=document.getElementById('extra-pay-cat').value;
@@ -2155,42 +2165,88 @@ function addExtraPayment(){
   if(!stu){toast('학생을 선택해주세요');return;}
   if(!title){toast('항목명을 입력해주세요');return;}
   if(!amount){toast('금액을 입력해주세요');return;}
-  if(!date){toast('납부일을 선택해주세요');return;}
+  if(editingExtraPayId){
+    var item=(DB.extraPayments||[]).find(function(p){return p.id===editingExtraPayId;});
+    if(item){
+      item.student=stu;item.category=cat;item.title=title;item.amount=amount;item.method=method;
+      if(date)item.date=date;
+      save();
+      toast('수정되었습니다');
+    }
+    resetExtraPayForm();
+    renderExtraPaymentsList();
+    return;
+  }
   if(!DB.extraPayments)DB.extraPayments=[];
-  DB.extraPayments.unshift({id:uid++,student:stu,category:cat,title:title,amount:amount,date:date,method:method,ts:Date.now()});
+  DB.extraPayments.unshift({id:uid++,student:stu,category:cat,title:title,amount:amount,date:date||'',method:method,paid:false,ts:Date.now()});
   save();
-  document.getElementById('extra-pay-title').value='';
-  document.getElementById('extra-pay-amount').value='';
+  resetExtraPayForm();
   renderExtraPaymentsList();
-  toast('기록이 추가되었습니다');
+  toast('항목이 등록되었습니다 — 결제되면 목록에서 "수납체크"를 눌러주세요');
+}
+function editExtraPayment(id){
+  var item=(DB.extraPayments||[]).find(function(p){return p.id===id;});
+  if(!item)return;
+  document.getElementById('extra-pay-stu').value=item.student;
+  document.getElementById('extra-pay-cat').value=item.category;
+  document.getElementById('extra-pay-title').value=item.title;
+  document.getElementById('extra-pay-amount').value=item.amount;
+  document.getElementById('extra-pay-date').value=item.date||'';
+  document.getElementById('extra-pay-method').value=item.method||'현금';
+  editingExtraPayId=id;
+  var btn=document.getElementById('extra-pay-submit-btn');
+  if(btn)btn.textContent='✓ 수정 저장';
+  toast(item.title+' 항목을 수정합니다 — 고친 후 "수정 저장"을 눌러주세요');
+}
+function toggleExtraPaymentPaid(id){
+  var item=(DB.extraPayments||[]).find(function(p){return p.id===id;});
+  if(!item)return;
+  item.paid=!item.paid;
+  if(item.paid&&!item.date)item.date=new Date().toISOString().slice(0,10);
+  save();
+  renderExtraPaymentsList();
+  toast(item.paid?'수납 완료로 표시했습니다':'미납으로 되돌렸습니다');
 }
 function deleteExtraPayment(id){
   if(!confirm('이 기록을 삭제할까요?'))return;
   tombstone('extraPayments',id);
   DB.extraPayments=(DB.extraPayments||[]).filter(function(p){return p.id!==id;});
+  if(editingExtraPayId===id)resetExtraPayForm();
   save();renderExtraPaymentsList();
 }
 function renderExtraPaymentsList(){
   var listEl=document.getElementById('extra-pay-list');
   if(!listEl)return;
   var month=curPayMonth||ymNow();
-  var items=(DB.extraPayments||[]).filter(function(p){return (p.date||'').slice(0,7)===month;})
-    .sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});
+  var items=(DB.extraPayments||[]).filter(function(p){
+    if(!p.paid)return true; // 미납(대기) 항목은 월 상관없이 항상 표시
+    return (p.date||'').slice(0,7)===month;
+  }).sort(function(a,b){
+    if(!!a.paid!==!!b.paid)return a.paid?1:-1; // 미납을 위로
+    return (b.date||'').localeCompare(a.date||'');
+  });
   if(!items.length){
-    listEl.innerHTML='<div style="padding:12px 0;text-align:center;color:var(--t3);font-size:12px">이번 달 기록이 없습니다</div>';
+    listEl.innerHTML='<div style="padding:12px 0;text-align:center;color:var(--t3);font-size:12px">등록된 항목이 없습니다</div>';
   }else{
     listEl.innerHTML=items.map(function(p){
+      var statusBadge=p.paid?'<span class="badge badge-green">수납완료</span>':'<span class="badge badge-red">미납</span>';
+      var detail=p.paid?(fmtWon(feeToNumber(p.amount))+' · '+(p.method||'-')+' · '+(p.date||'-')):(fmtWon(feeToNumber(p.amount))+' (결제 대기)');
       return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);flex-wrap:wrap">'+
         '<span class="badge badge-blue">'+(EXTRA_PAY_CAT_LABELS[p.category]||'기타')+'</span>'+
+        statusBadge+
         '<div style="flex:1;min-width:140px"><b style="font-size:13px">'+p.student+'</b> · '+p.title+
-          '<div style="font-size:11px;color:var(--t3)">'+fmtWon(feeToNumber(p.amount))+' · '+p.method+' · '+p.date+'</div></div>'+
+          '<div style="font-size:11px;color:var(--t3)">'+detail+'</div></div>'+
+        '<button class="btn btn-xs '+(p.paid?'btn-gray':'btn-blue')+'" onclick="toggleExtraPaymentPaid('+p.id+')">'+(p.paid?'미납처리':'수납체크')+'</button>'+
+        '<button class="btn btn-gray btn-xs" onclick="editExtraPayment('+p.id+')">수정</button>'+
         '<button class="btn btn-gray btn-xs" onclick="deleteExtraPayment('+p.id+')">삭제</button>'+
       '</div>';
     }).join('');
   }
-  var total=items.reduce(function(sum,p){return sum+feeToNumber(p.amount);},0);
+  var paidItems=items.filter(function(p){return p.paid;});
+  var pendingCount=items.filter(function(p){return !p.paid;}).length;
+  var total=paidItems.reduce(function(sum,p){return sum+feeToNumber(p.amount);},0);
   var totalEl=document.getElementById('extra-pay-total');
-  if(totalEl)totalEl.textContent='이번 달 합계: '+fmtWon(total)+' ('+items.length+'건)';
+  if(totalEl)totalEl.textContent='이번 달 수납 합계: '+fmtWon(total)+' ('+paidItems.length+'건)'+(pendingCount?' · 결제 대기 '+pendingCount+'건':'');
 }
 
 
@@ -3146,7 +3202,7 @@ function renderWarnList(retest){
   (retest||[]).forEach(function(v){
     var key=v.student+'_retest_'+v.title;
     if(seen.has(key))return; seen.add(key);
-    items.push({name:v.student,type:'retest',label:'재시험',sub:v.subject+' '+v.title+' '+v.score+'점',color:'var(--red)'});
+    items.push({name:v.student,type:'retest',label:'재시험',sub:(v.subject||'')+' '+v.title+' '+v.score+'점 · '+(v.date||''),color:'var(--red)',recId:v.id});
   });
 
   // 2. 오늘 결석 학생 + 과목
@@ -3244,6 +3300,21 @@ function renderWarnList(retest){
     badge.style.cssText='font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;background:'+item.color+'22;color:'+item.color+';flex-shrink:0;white-space:nowrap';
     badge.textContent=item.label;
     row.appendChild(av);row.appendChild(info);row.appendChild(badge);
+    if(item.type==='retest'&&item.recId!=null){
+      var ackBtn=document.createElement('button');
+      ackBtn.className='btn btn-gray btn-xs';
+      ackBtn.textContent='확인';
+      ackBtn.style.flexShrink='0';
+      ackBtn.onclick=function(e){
+        e.stopPropagation();
+        var rec=(DB.vocabRecords||[]).find(function(v){return v.id===item.recId;});
+        if(rec){rec.retest='done';save();}
+        renderWarnListOnly();
+        renderDash();
+        toast(item.name+' 재시험 확인 처리했습니다');
+      };
+      row.appendChild(ackBtn);
+    }
     list.appendChild(row);
   });
 }
@@ -3252,14 +3323,23 @@ function renderDashMakeup(){
   var list=document.getElementById('dash-makeup-list');if(!list)return;
   if(!DB.makeups||!DB.makeups.length){list.innerHTML='<div style="padding:14px;text-align:center;color:var(--t3);font-size:13px">보강 대기 없음</div>';return;}
   list.innerHTML='';
-  DB.makeups.forEach(function(m,i){
+  DB.makeups.forEach(function(m){
     var row=document.createElement('div');row.className='warn-row';
     var info=document.createElement('div');info.className='warn-info';
     info.innerHTML='<div class="warn-name">'+m.student+(m.subject?' <span style="font-size:10px;color:var(--t3)">['+m.subject+']</span>':'')+'</div><div class="warn-sub">'+m.detail+' · '+m.date+'</div>';
-    var btn=document.createElement('button');btn.className='btn btn-green btn-xs';btn.textContent='완료';
-    btn.onclick=(function(idx){return function(){tombstone('makeups',DB.makeups[idx]&&DB.makeups[idx].id);DB.makeups.splice(idx,1);save();renderDashMakeup();};})(i);
+    var btn=document.createElement('button');btn.className='btn btn-green btn-xs';btn.textContent='완료 처리';
+    var mid=m.id;
+    btn.onclick=function(){completeMakeup(mid);};
     row.appendChild(info);row.appendChild(btn);list.appendChild(row);
   });
+}
+function completeMakeup(id){
+  if(!confirm('이 보강을 완료 처리하고 목록에서 지울까요?'))return;
+  tombstone('makeups',id);
+  DB.makeups=(DB.makeups||[]).filter(function(m){return m.id!==id;});
+  save();
+  renderDashMakeup();
+  toast('보강 완료 처리되었습니다');
 }
 function renderDashSchedSummary(){
   var el=document.getElementById('dash-sched-summary');
@@ -3999,6 +4079,11 @@ function buildAllDaysUnifiedTable(container){
           var wrap=document.createElement('div');wrap.style.cssText='display:flex;flex-direction:column;align-items:flex-start;gap:1px';
           stu.forEach(function(n){var sp=document.createElement('div');sp.className='chip2 '+CCLS[ci%CCLS.length];var prof=getStuProfile(n);sp.textContent=n+(prof&&isBirthdayToday(prof.birth)?' 🎂':'');wrap.appendChild(sp);});
           td.appendChild(wrap);
+          var editBtn2=document.createElement('button');
+          editBtn2.style.cssText='font-size:9px;padding:1px 5px;border-radius:4px;border:1px solid var(--border);background:var(--s2);color:var(--t2);cursor:pointer;width:100%;margin-top:2px;pointer-events:auto';
+          editBtn2.textContent='✏️ 추가·삭제';
+          editBtn2.onclick=(function(di,ri,ci2){return function(e){e.stopPropagation();openClsModal(di,ri,ci2,true);};})(dd.di,rowIdx,ci);
+          td.appendChild(editBtn2);
           td.onclick=(function(dk,ri,ci2,colName,stuArr,tt){return function(){openAttModal(dk,ri,ci2,colName,stuArr,tt);};})(dd.dk,rowIdx,ci,dd.day.cols[ci],stu,t);
         }else if(rowObj){
           td.style.cssText='cursor:pointer;color:var(--t3);font-size:10px;text-align:center;padding:6px 2px;vertical-align:middle';
@@ -4168,6 +4253,7 @@ function addMakeupFromModal(){
   DB.makeups.push({id:uid++,student:s,detail:d,date:todayKo()});
   save();toast(`${s} 보강 등록 완료`);
   document.getElementById('mk-detail').value='';
+  if(typeof renderDashMakeup==='function')renderDashMakeup();
 }
 function saveAttModal(){closeModal('modal-att');toast('출결 저장 완료');}
 
