@@ -2678,6 +2678,21 @@ function mergeRemoteIntoLocal(remote,preferLocal){
     });
     DB[f]=out;
   });
+  // 보강(makeups) 전용: id 없이 저장된 예전 항목은 tombstone(고유번호 기반)으로 삭제 표시가 안 되므로,
+  // "내용 기준 삭제 기록"을 따로 남겨서 병합 때마다 되살아나지 않도록 함
+  DB.makeupDeletedSigs=(function(){
+    var merged=(remote.makeupDeletedSigs||[]).concat(DB.makeupDeletedSigs||[]);
+    var seen2={};var out2=[];
+    merged.forEach(function(s){if(s&&!seen2[s]){seen2[s]=true;out2.push(s);}});
+    return out2.slice(-300);
+  })();
+  if(DB.makeupDeletedSigs.length&&DB.makeups&&DB.makeups.length){
+    var delSigSet={};DB.makeupDeletedSigs.forEach(function(s){delSigSet[s]=true;});
+    DB.makeups=DB.makeups.filter(function(m){
+      var sig=(m.student||'')+'|'+(m.detail||'')+'|'+(m.date||'');
+      return !delSigSet[sig];
+    });
+  }
   dedupeStaffAccounts();
   if(remote.feedback){
     var localFb=DB.feedback||{},remoteFb=remote.feedback||{};
@@ -3357,6 +3372,12 @@ function renderWarnList(retest){
 
 function renderDashMakeup(){
   var list=document.getElementById('dash-makeup-list');if(!list)return;
+  if(DB.makeupDeletedSigs&&DB.makeupDeletedSigs.length&&DB.makeups&&DB.makeups.length){
+    var delSigSet2={};DB.makeupDeletedSigs.forEach(function(s){delSigSet2[s]=true;});
+    var before2=DB.makeups.length;
+    DB.makeups=DB.makeups.filter(function(m){return !delSigSet2[(m.student||'')+'|'+(m.detail||'')+'|'+(m.date||'')];});
+    if(DB.makeups.length!==before2)save();
+  }
   if(DB.makeups&&DB.makeups.length){
     var needsIdFix=false;
     DB.makeups.forEach(function(m){
@@ -3392,6 +3413,12 @@ function completeMakeup(sig){
   var toRemove=(DB.makeups||[]).filter(function(m){return (m.student+'|'+m.detail+'|'+m.date)===sig;});
   toRemove.forEach(function(m){if(m.id!=null)tombstone('makeups',m.id);});
   DB.makeups=(DB.makeups||[]).filter(function(m){return (m.student+'|'+m.detail+'|'+m.date)!==sig;});
+  // id 없이 저장된 예전 항목은 tombstone만으로 안전하게 지워지지 않으므로, 내용 자체를 "삭제됨"으로 기록해둡니다
+  if(!DB.makeupDeletedSigs)DB.makeupDeletedSigs=[];
+  if(DB.makeupDeletedSigs.indexOf(sig)<0){
+    DB.makeupDeletedSigs.push(sig);
+    DB.makeupDeletedSigs=DB.makeupDeletedSigs.slice(-300);
+  }
   save();
   renderDashMakeup();
   toast('보강 완료 처리되었습니다'+(toRemove.length>1?' (중복 '+toRemove.length+'건 정리됨)':''));
