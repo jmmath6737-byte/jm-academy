@@ -5830,7 +5830,7 @@ function renderDashMemoList(listId,dk,time,ci,dayWide,td,subjectStr){
         if(subjectStr&&m.subject&&m.subject===subjectStr)return true; // ci가 예전 기록이라 안 맞아도 과목명으로 매칭
         return false;
       }).sort(function(a,b){return (b.id||0)-(a.id||0);})
-    : DB.classMemos.filter(function(m){return m.dk===dk&&m.time===time&&m.ci===ci;});
+    : DB.classMemos.filter(function(m){return m.dk===dk&&m.time===time&&m.ci===ci&&m.date===td;}).sort(function(a,b){return (b.id||0)-(a.id||0);});
   list.innerHTML='';
   if(!memos.length){list.innerHTML='<div style="font-size:12px;color:var(--t3);padding:3px 0">아직 기록 없음</div>';return;}
   memos.forEach(function(m){
