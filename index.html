@@ -6516,7 +6516,8 @@ function shareReport(){
   }else{
     text=buildReportText(name);
   }
-  if(navigator.share){
+  var isMobileDevice=/Android|iPhone|iPad|iPod|Mobi/i.test(navigator.userAgent||'');
+  if(navigator.share&&isMobileDevice){
     navigator.share({title:name+' 학습 리포트',text:text}).catch(function(){});
     return;
   }
