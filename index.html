@@ -490,7 +490,7 @@ button,select,input,textarea{font-family:inherit}
         <img class="jm-logo-img" alt="JM 로고" style="height:26px;width:26px;border-radius:6px;display:block">
         <h1 style="margin:0">제이엠 수학영어&리드인학원</h1>
       </div>
-      <div class="apply-sub">온라인 원생등록 신청서 — 상담 후 등록을 원하시면 아래 내용을 작성해주세요. 확인 후 안내드리겠습니다.</div>
+      <div class="apply-sub" style="font-size:20px;font-weight:800;color:var(--t1);text-align:center;margin-top:4px">입회원서</div>
       <div class="form-group"><label class="form-label">학생 이름 *</label><input class="form-input" id="pa-name" placeholder="학생 이름"></div>
       <div class="form-group"><label class="form-label">생년월일</label><input class="form-input" id="pa-birth" type="date"></div>
       <div class="form-row">
@@ -707,6 +707,12 @@ button,select,input,textarea{font-family:inherit}
 
   <!-- ══ 원생관리 ══ -->
   <div class="page" id="page-students">
+    <div class="card" style="margin-bottom:12px;padding:10px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="font-size:12px;color:var(--t2);white-space:nowrap">📋 입회원서 링크</span>
+      <code id="apply-link-text" style="font-size:11px;background:var(--s2);padding:5px 8px;border-radius:6px;word-break:break-all;flex:1;min-width:160px"></code>
+      <button class="btn btn-gray btn-xs" onclick="copyApplyLink()">복사</button>
+      <button class="btn btn-blue btn-xs" onclick="smsApplyLink()">📱 문자로 전송</button>
+    </div>
     <div class="student-layout">
       <!-- 왼쪽: 학생 목록 -->
       <div class="student-list-panel">
@@ -981,12 +987,33 @@ button,select,input,textarea{font-family:inherit}
       <div class="stat-card"><div class="label">미수납 인원</div><div class="value" id="pay-stat-unpaid">0명</div><div class="sub">체크 필요</div></div>
       <div class="stat-card"><div class="label">수납률</div><div class="value" id="pay-stat-rate">0%</div><div class="sub">완납 학생 비율</div></div>
     </div>
-    <div class="card" style="margin-bottom:14px">
-      <div class="card-head">
-        <span class="card-title">💰 월별 원생 수납 현황</span>
-        <input type="month" class="form-input" id="pay-month-picker" style="width:150px" onchange="changePayMonth(this.value)">
+    <div class="grid2" style="align-items:start;margin-bottom:14px">
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">💰 원비 수납 현황 (수입)</span>
+          <input type="month" class="form-input" id="pay-month-picker" style="width:150px" onchange="changePayMonth(this.value)">
+        </div>
+        <div class="card-body" id="pay-student-list" style="padding:0;max-height:560px;overflow-y:auto"></div>
       </div>
-      <div class="card-body" id="pay-student-list" style="padding:0"></div>
+      <div class="card">
+        <div class="card-head"><span class="card-title">📒 지출 장부</span></div>
+        <div class="card-body">
+          <div style="font-size:11px;color:var(--t2);margin-bottom:10px;line-height:1.5">
+            <b>수입</b>은 왼쪽 원비 수납액 + 특강비 수납액을 자동 합산합니다. <b>지출</b>은 아래에 직접 입력해주세요.
+          </div>
+          <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px;padding:10px;background:var(--s2);border-radius:8px">
+            <div><div style="font-size:16px;font-weight:800;color:var(--green)" id="ledger-income">0원</div><div style="font-size:10px;color:var(--t2)">이번 달 총 수입</div></div>
+            <div><div style="font-size:16px;font-weight:800;color:var(--red)" id="ledger-expense">0원</div><div style="font-size:10px;color:var(--t2)">이번 달 총 지출</div></div>
+            <div><div style="font-size:16px;font-weight:800" id="ledger-profit">0원</div><div style="font-size:10px;color:var(--t2)">순이익</div></div>
+          </div>
+          <div id="ledger-expense-rows" style="max-height:340px;overflow-y:auto"></div>
+          <button class="btn btn-blue btn-sm" style="margin-top:10px" onclick="saveLedgerExpenses()">💾 지출 내역 저장</button>
+          <div style="margin-top:18px">
+            <div style="font-size:12px;font-weight:700;margin-bottom:8px">📅 <span id="ledger-year-label"></span>년 연간 요약</div>
+            <div id="ledger-annual-table" style="overflow-x:auto;max-height:260px;overflow-y:auto"></div>
+          </div>
+        </div>
+      </div>
     </div>
     <div class="card" style="margin-bottom:14px">
       <div class="card-head"><span class="card-title">📚 응시료·교재비 관리</span></div>
@@ -1065,7 +1092,7 @@ button,select,input,textarea{font-family:inherit}
               <li>"수강 과목" 입력창 아래에 등록된 과목·강사 버튼들이 나옵니다</li>
               <li>해당하는 과목·강사를 클릭하면 파란색으로 바뀌며 자동 입력됨 (여러 개 선택 가능)</li>
             </ol>
-            <b>학원비는 원장 계정에서만 보이고 입력할 수 있어요.</b> 선생님 계정으로 학생을 수정해도 기존 학원비 값은 그대로 유지됩니다.
+            <b>학원비는 원장 계정에서만 보이고 입력할 수 있어요.</b> 선생님 계정으로 학생을 수정해도 기존 학원비 값은 그대로 유지됩니다. (수납관리 페이지에서 학생 이름 아래 "학원비" 금액을 클릭해도 바로 수정할 수 있어요.)
           </div>
         </details>
         <details class="manual-item">
@@ -1663,7 +1690,8 @@ let DB = {
   memos: [],
   todos: [],
   payments: [], // {id, student, ym('YYYY-MM'), amount, date, method, memo, ts} - 월별 수납 기록
-  extraPayments: [], // {id, student, category('exam'|'material'|'other'), title, amount, date, method, memo, ts} - 응시료·교재비 등 비정기 수납 기록
+  extraPayments: [], // {id, student, category('exam'|'material'|'lecture'|'other'), title, amount, date, method, memo, ts} - 응시료·교재비·특강비 등 비정기 수납 기록
+  expenses: [], // {id, ym('YYYY-MM'), category, person(직원급여인 경우 계정 loginId, 그 외 ''), amount, memo, receipt('Y'|'N'), ts} - 월별 학원 지출 기록
   consultApplications: [], // {id, name, birth, grade, school, stuPhone, phone, phone2, address, pickup, subjectWish, memo, consent, date, ts} - 학부모 온라인 상담·등록 신청
   staffAccounts: [] // {id, loginId, pw, name, role} - 강사·직원 로그인 계정 (설정에서 관리)
 };
@@ -1699,7 +1727,9 @@ function ensureStaffAccounts(){
     save();
   }
   var removedDup=dedupeStaffAccounts();
-  if(removedDup)save();
+  var removedDupStu=dedupeStudents();
+  var removedExp=cleanupRemovedExpenseCategories();
+  if(removedDup||removedDupStu||removedExp)save();
 }
 function dedupeStaffAccounts(){
   var arr=DB.staffAccounts||[];
@@ -1710,6 +1740,37 @@ function dedupeStaffAccounts(){
     seen[item.loginId]=true;out.push(item);
   });
   DB.staffAccounts=out;
+  return removed;
+}
+// 같은 이름으로 원생이 두 번 등록된 경우(학원비 입력 없이 등록 후 다시 등록 등) 정리
+// 학원비가 입력된 쪽을 남기고, 둘 다 입력이 없으면 최근에 수정된 쪽을 남김
+function dedupeStudents(){
+  var arr=DB.students||[];
+  var byName={};
+  arr.forEach(function(s){
+    if(!s||!s.name)return;
+    if(!byName[s.name])byName[s.name]=[];
+    byName[s.name].push(s);
+  });
+  var removed=false,keep=[];
+  Object.keys(byName).forEach(function(name){
+    var group=byName[name];
+    if(group.length===1){keep.push(group[0]);return;}
+    var winner=group.slice().sort(function(a,b){
+      var af=feeToNumber(a.fee),bf=feeToNumber(b.fee);
+      if(af>0&&bf<=0)return -1;
+      if(bf>0&&af<=0)return 1;
+      return (b.updatedAt||0)-(a.updatedAt||0);
+    })[0];
+    keep.push(winner);
+    group.forEach(function(s){
+      if(s!==winner){
+        if(s.id!=null)tombstone('students',s.id);
+        removed=true;
+      }
+    });
+  });
+  DB.students=keep;
   return removed;
 }
 
@@ -2029,6 +2090,19 @@ function changePayMonth(v){
   curPayMonth=v;
   renderPaymentsPage();
 }
+function editStudentFeeInline(name){
+  var stu=DB.students.find(function(s){return s.name===name;});
+  if(!stu){toast('학생 정보를 찾을 수 없습니다');return;}
+  var cur=feeToNumber(stu.fee);
+  var input=prompt(name+' 학생의 월 학원비를 입력하세요 (숫자만)',cur||'');
+  if(input===null)return;
+  var n=feeToNumber(input);
+  stu.fee=n?String(n):'';
+  stu.updatedAt=Date.now();
+  save();
+  renderPaymentsPage();
+  toast('학원비가 수정되었습니다');
+}
 function renderPaymentsPage(){
   if(!curPayMonth)curPayMonth=ymNow();
   var picker=document.getElementById('pay-month-picker');
@@ -2051,16 +2125,18 @@ function renderPaymentsPage(){
     var pay=findPayment(s.name,curPayMonth);
     var paidAmt=pay?feeToNumber(pay.amount):0;
     if(pay){received+=paidAmt;}else{unpaidCount++;}
+    var detailText=pay?(fmtWon(paidAmt)+' · '+pay.method+' · '+pay.date):'';
     var statusBadge = pay
-      ? (fee>0 && paidAmt>=fee ? '<span class="badge badge-green">완납</span>' : '<span class="badge badge-amber">부분납</span>')
+      ? (fee>0 && paidAmt>=fee ? '<span class="badge badge-green" title="'+detailText+'">완납</span>' : '<span class="badge badge-amber" title="'+detailText+'">부분납</span>')
       : '<span class="badge badge-red">미납</span>';
-    rows+='<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap">'+
-      '<div style="flex:1;min-width:110px"><b style="font-size:13px">'+s.name+'</b>'+
-        '<div style="font-size:11px;color:var(--t3)">학원비 '+fmtWon(fee)+'</div></div>'+
-      '<div>'+statusBadge+'</div>'+
-      '<div style="font-size:11px;color:var(--t2);min-width:170px">'+(pay?(fmtWon(paidAmt)+' · '+pay.method+' · '+pay.date):'')+'</div>'+
-      '<button class="btn btn-blue btn-xs" onclick="openPaymentModal(\''+s.name.replace(/'/g,"\\'")+'\')">'+(pay?'수정':'수납 체크')+'</button>'+
-      (pay?('<button class="btn btn-gray btn-xs" onclick="undoPayment(\''+s.name.replace(/'/g,"\\'")+'\')">미납처리</button>'):'')+
+    rows+='<div style="display:flex;align-items:center;gap:6px;padding:5px 10px;border-bottom:1px solid var(--border);font-size:12px">'+
+      '<div style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+
+        '<b style="font-size:12.5px">'+s.name+'</b> '+
+        '<span style="color:var(--t3);font-size:10.5px;cursor:pointer;text-decoration:underline dotted" title="클릭해서 학원비 수정" onclick="editStudentFeeInline(\''+s.name.replace(/'/g,"\\'")+'\')">'+fmtWon(fee)+' ✏️</span>'+
+      '</div>'+
+      '<div style="flex-shrink:0">'+statusBadge+'</div>'+
+      '<button class="btn btn-blue btn-xs" style="flex-shrink:0" onclick="openPaymentModal(\''+s.name.replace(/'/g,"\\'")+'\')">'+(pay?'수정':'수납체크')+'</button>'+
+      (pay?('<button class="btn btn-gray btn-xs" style="flex-shrink:0" onclick="undoPayment(\''+s.name.replace(/'/g,"\\'")+'\')">미납처리</button>'):'')+
     '</div>';
   });
   var listEl=document.getElementById('pay-student-list');
@@ -2074,6 +2150,7 @@ function renderPaymentsPage(){
 
   renderTeacherMonthlyCount(students);
   renderWithdrawStats();
+  renderLedgerSection();
   renderExtraPaymentsList();
 }
 function openPaymentModal(name){
@@ -2127,6 +2204,185 @@ function renderTeacherMonthlyCount(studentsThisMonth){
     return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">'+
       '<span>'+subj+'</span><b>'+cnt+'명</b></div>';
   }).join('');
+}
+var EXPENSE_CATEGORIES=['직원 급여','월세·임대료','관리비','차량비','차량 유류비','물품비·교재비','인쇄·사무비','통신·인터넷','보험료','노란우산공제','세무 기장료','매쓰플랫','리드인시스템비','YBM 교재비','기타 지출'];
+function getLedgerIncome(ym){
+  var tuition=(DB.payments||[]).filter(function(p){return p.ym===ym;}).reduce(function(s,p){return s+feeToNumber(p.amount);},0);
+  var lecture=(DB.extraPayments||[]).filter(function(p){return p.paid && p.category==='lecture' && (p.date||'').slice(0,7)===ym;}).reduce(function(s,p){return s+feeToNumber(p.amount);},0);
+  return tuition+lecture;
+}
+// 원장 인건비·강사료 항목은 직원 급여(계정별) 항목으로 대체되어 제거됨 — 남아있던 기록 정리
+function cleanupRemovedExpenseCategories(){
+  var removedCats={'원장 인건비':true,'강사료':true};
+  var kept=[],removed=false;
+  (DB.expenses||[]).forEach(function(e){
+    if(e&&removedCats[e.category]){
+      if(e.id!=null)tombstone('expenses',e.id);
+      removed=true;
+    }else{
+      kept.push(e);
+    }
+  });
+  DB.expenses=kept;
+  return removed;
+}
+function findExpense(ym,cat,person){
+  return (DB.expenses||[]).find(function(e){return e.ym===ym && e.category===cat && (e.person||'')===(person||'');});
+}
+function getLedgerExpenseTotal(ym){
+  return (DB.expenses||[]).filter(function(e){return e.ym===ym;}).reduce(function(s,e){return s+feeToNumber(e.amount);},0);
+}
+function ledgerExpenseRowHtml(cat,person,label,amt,memo,receipt){
+  var safeCat=cat.replace(/"/g,'&quot;');
+  var safePerson=(person||'').replace(/"/g,'&quot;');
+  var safeMemo=(memo||'').replace(/"/g,'&quot;');
+  return '<div class="ledger-row" data-cat="'+safeCat+'" data-person="'+safePerson+'" style="display:flex;align-items:center;gap:8px;padding:5px 0;flex-wrap:wrap">'+
+    '<span style="width:100px;flex-shrink:0;font-size:12px;color:var(--t2)">'+label+'</span>'+
+    '<input type="text" class="form-input ledger-exp-amt" placeholder="금액" value="'+amt+'" style="width:110px;font-size:12px;padding:6px 8px">'+
+    '<input type="text" class="form-input ledger-exp-memo" placeholder="납부일/메모" value="'+safeMemo+'" style="flex:1;min-width:90px;font-size:12px;padding:6px 8px">'+
+    '<label style="font-size:11px;color:var(--t2);display:flex;align-items:center;gap:4px;white-space:nowrap"><input type="checkbox" class="ledger-exp-receipt" '+(receipt?'checked':'')+'>영수증</label>'+
+  '</div>';
+}
+function renderLedgerSection(){
+  if(!curPayMonth)curPayMonth=ymNow();
+  var ym=curPayMonth;
+  var income=getLedgerIncome(ym);
+  var expenseTotal=getLedgerExpenseTotal(ym);
+  var profit=income-expenseTotal;
+  var incEl=document.getElementById('ledger-income');if(incEl)incEl.textContent=fmtWon(income);
+  var expEl=document.getElementById('ledger-expense');if(expEl)expEl.textContent=fmtWon(expenseTotal);
+  var profEl=document.getElementById('ledger-profit');
+  if(profEl){profEl.textContent=fmtWon(profit);profEl.style.color=profit>=0?'var(--green)':'var(--red)';}
+  var rowsEl=document.getElementById('ledger-expense-rows');
+  if(rowsEl){
+    var staffAccts=DB.staffAccounts||[];
+    var staffTotal=staffAccts.reduce(function(s,acc){var e=findExpense(ym,'직원 급여',acc.loginId);return s+(e?feeToNumber(e.amount):0);},0);
+    var staffHtml='<div style="padding:6px 0;border-bottom:1px solid var(--border)">'+
+      '<div style="font-size:12px;font-weight:600;margin-bottom:6px;display:flex;justify-content:space-between">'+
+        '<span>직원 급여 <span style="font-weight:400;color:var(--t3)">(등록된 강사·직원 계정별로 입력)</span></span>'+
+        '<span style="color:var(--t2)">소계 '+fmtWon(staffTotal)+'</span></div>'+
+      '<div style="max-height:220px;overflow-y:auto;padding-right:4px">'+
+      (staffAccts.length?staffAccts.map(function(acc){
+        var e=findExpense(ym,'직원 급여',acc.loginId);
+        var amt=e?feeToNumber(e.amount):'';
+        var memo=e?(e.memo||''):'';
+        var receipt=!!(e&&e.receipt==='Y');
+        var label=acc.name+(acc.role==='director'?' (원장)':'');
+        return ledgerExpenseRowHtml('직원 급여',acc.loginId,label,amt,memo,receipt);
+      }).join(''):'<div style="font-size:12px;color:var(--t3);padding:6px 0">등록된 강사·직원 계정이 없습니다</div>')+
+      '</div></div>';
+    var genericHtml=EXPENSE_CATEGORIES.filter(function(c){return c!=='직원 급여' && c!=='기타 지출';}).map(function(cat){
+      var e=findExpense(ym,cat,'');
+      var amt=e?feeToNumber(e.amount):'';
+      var memo=e?(e.memo||''):'';
+      var receipt=!!(e&&e.receipt==='Y');
+      return '<div style="border-bottom:1px solid var(--border)">'+ledgerExpenseRowHtml(cat,'',cat,amt,memo,receipt)+'</div>';
+    }).join('');
+    var otherItems=(DB.expenses||[]).filter(function(e){return e.ym===ym && e.category==='기타 지출';});
+    var otherTotal=otherItems.reduce(function(s,e){return s+feeToNumber(e.amount);},0);
+    var otherHtml='<div style="padding:6px 0">'+
+      '<div style="font-size:12px;font-weight:600;margin-bottom:6px;display:flex;justify-content:space-between">'+
+        '<span>기타 지출 <span style="font-weight:400;color:var(--t3)">(항목을 자유롭게 추가)</span></span>'+
+        '<span style="color:var(--t2)">소계 '+fmtWon(otherTotal)+'</span></div>'+
+      '<div style="max-height:180px;overflow-y:auto;margin-bottom:8px">'+
+      (otherItems.length?otherItems.map(function(e){
+        return '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12px;flex-wrap:wrap;border-bottom:1px solid var(--border)">'+
+          '<span style="flex:1;min-width:80px">'+(e.title||'(제목 없음)')+'</span>'+
+          '<span style="width:90px;text-align:right;flex-shrink:0">'+fmtWon(feeToNumber(e.amount))+'</span>'+
+          '<span style="color:var(--t3);min-width:60px;flex-shrink:0">'+(e.memo||'')+'</span>'+
+          '<button class="btn btn-gray btn-xs" onclick="deleteOtherExpense('+e.id+')">삭제</button>'+
+        '</div>';
+      }).join(''):'<div style="font-size:12px;color:var(--t3);padding:4px 0">등록된 기타 지출이 없습니다</div>')+
+      '</div>'+
+      '<div style="display:flex;gap:6px;flex-wrap:wrap">'+
+        '<input type="text" class="form-input" id="other-exp-title" placeholder="항목명 (예: 에어컨 수리)" style="flex:1;min-width:100px;font-size:12px;padding:6px 8px">'+
+        '<input type="text" class="form-input" id="other-exp-amount" placeholder="금액" style="width:90px;font-size:12px;padding:6px 8px">'+
+        '<input type="text" class="form-input" id="other-exp-memo" placeholder="메모" style="width:90px;font-size:12px;padding:6px 8px">'+
+        '<button class="btn btn-blue btn-xs" onclick="addOtherExpense()">+ 추가</button>'+
+      '</div></div>';
+    rowsEl.innerHTML=staffHtml+genericHtml+otherHtml;
+  }
+  renderLedgerAnnualTable(ym.slice(0,4));
+}
+function addOtherExpense(){
+  var ym=curPayMonth||ymNow();
+  var titleEl=document.getElementById('other-exp-title');
+  var amtEl=document.getElementById('other-exp-amount');
+  var memoEl=document.getElementById('other-exp-memo');
+  var title=titleEl?titleEl.value.trim():'';
+  var amount=amtEl?amtEl.value.trim():'';
+  var memo=memoEl?memoEl.value.trim():'';
+  if(!title){toast('항목명을 입력해주세요');return;}
+  if(!DB.expenses)DB.expenses=[];
+  DB.expenses.push({id:uid++,ym:ym,category:'기타 지출',person:'',title:title,amount:amount,memo:memo,receipt:'N',ts:Date.now()});
+  save();
+  renderLedgerSection();
+  toast('기타 지출 항목이 추가되었습니다');
+}
+function deleteOtherExpense(id){
+  var item=(DB.expenses||[]).find(function(e){return e.id===id;});
+  if(!item)return;
+  if(!confirm('"'+(item.title||'이 항목')+'" 지출 내역을 삭제하시겠습니까?'))return;
+  tombstone('expenses',id);
+  DB.expenses=(DB.expenses||[]).filter(function(e){return e.id!==id;});
+  save();
+  renderLedgerSection();
+  toast('삭제되었습니다');
+}
+function saveLedgerExpenses(){
+  var ym=curPayMonth||ymNow();
+  if(!DB.expenses)DB.expenses=[];
+  document.querySelectorAll('#ledger-expense-rows .ledger-row').forEach(function(row){
+    var cat=row.getAttribute('data-cat');
+    var person=row.getAttribute('data-person')||'';
+    var amtInput=row.querySelector('.ledger-exp-amt');
+    var memoInput=row.querySelector('.ledger-exp-memo');
+    var receiptInput=row.querySelector('.ledger-exp-receipt');
+    var amount=amtInput?amtInput.value.trim():'';
+    var memo=memoInput?memoInput.value.trim():'';
+    var receipt=(receiptInput&&receiptInput.checked)?'Y':'N';
+    var existing=findExpense(ym,cat,person);
+    if(!amount && !memo){
+      if(existing){tombstone('expenses',existing.id);DB.expenses=DB.expenses.filter(function(e){return e.id!==existing.id;});}
+      return;
+    }
+    if(existing){
+      existing.amount=amount;existing.memo=memo;existing.receipt=receipt;existing.person=person;existing.updatedAt=Date.now();
+    }else{
+      DB.expenses.push({id:uid++,ym:ym,category:cat,person:person,amount:amount,memo:memo,receipt:receipt,ts:Date.now()});
+    }
+  });
+  save();
+  renderLedgerSection();
+  toast('지출 내역이 저장되었습니다');
+}
+function renderLedgerAnnualTable(year){
+  var el=document.getElementById('ledger-annual-table');
+  var yearLabelEl=document.getElementById('ledger-year-label');
+  if(yearLabelEl)yearLabelEl.textContent=year;
+  if(!el)return;
+  var rows='<table style="width:100%;border-collapse:collapse;font-size:12px">'+
+    '<tr style="border-bottom:2px solid var(--border)"><th style="text-align:left;padding:6px 4px">월</th><th style="text-align:right;padding:6px 4px">총 수입</th><th style="text-align:right;padding:6px 4px">총 지출</th><th style="text-align:right;padding:6px 4px">순이익</th></tr>';
+  var totalInc=0,totalExp=0;
+  for(var m=1;m<=12;m++){
+    var ym=year+'-'+String(m).padStart(2,'0');
+    var inc=getLedgerIncome(ym), exp=getLedgerExpenseTotal(ym);
+    totalInc+=inc;totalExp+=exp;
+    var profit=inc-exp;
+    rows+='<tr style="border-bottom:1px solid var(--border)'+(ym===curPayMonth?';background:var(--s2)':'')+'">'+
+      '<td style="padding:6px 4px">'+m+'월</td>'+
+      '<td style="text-align:right;padding:6px 4px">'+fmtWon(inc)+'</td>'+
+      '<td style="text-align:right;padding:6px 4px">'+fmtWon(exp)+'</td>'+
+      '<td style="text-align:right;padding:6px 4px;color:'+(profit>=0?'var(--green)':'var(--red)')+'">'+fmtWon(profit)+'</td>'+
+    '</tr>';
+  }
+  rows+='<tr style="font-weight:700;border-top:2px solid var(--border)">'+
+    '<td style="padding:6px 4px">합계</td>'+
+    '<td style="text-align:right;padding:6px 4px">'+fmtWon(totalInc)+'</td>'+
+    '<td style="text-align:right;padding:6px 4px">'+fmtWon(totalExp)+'</td>'+
+    '<td style="text-align:right;padding:6px 4px">'+fmtWon(totalInc-totalExp)+'</td>'+
+  '</tr></table>';
+  el.innerHTML=rows;
 }
 function renderWithdrawStats(){
   var all=DB.students||[];
@@ -2637,7 +2893,7 @@ function mergeRemoteIntoLocal(remote,preferLocal){
     DB.tombstones=Object.values(mergedTomb).slice(-500);
   }
   // id 기반 배열 필드: id로 합치고, preferLocal에 따라 어느 쪽이 최종본인지 결정
-  ['classMemos','dirNotices','counsels','weeklyFeedback','academicEvents','academyTasks','makeups','vocabRecords','progs','staffAccounts','payments','consultApplications','extraPayments'].forEach(function(f){
+  ['classMemos','dirNotices','counsels','weeklyFeedback','academicEvents','academyTasks','makeups','vocabRecords','progs','staffAccounts','payments','consultApplications','extraPayments','expenses'].forEach(function(f){
     var remoteArr=(remote[f]||[]).filter(function(item){return!(item&&item.id!=null&&deadIds[f+':'+item.id]);});
     var localArr=(DB[f]||[]).filter(function(item){return!(item&&item.id!=null&&deadIds[f+':'+item.id]);});
     var localIds={};localArr.forEach(function(item){if(item&&item.id!=null)localIds[item.id]=true;});
@@ -2731,6 +2987,7 @@ function mergeRemoteIntoLocal(remote,preferLocal){
     noIdLocal.concat(noIdRemote).forEach(function(s){if(!s||!s.name||noIdSeen[s.name])return;noIdSeen[s.name]=true;noId.push(s);});
     if(remote.students)DB.students=idKeyed.concat(noId);
   })();
+  dedupeStudents();
   return hadNewContent;
 }
 
@@ -2764,8 +3021,10 @@ async function loadFromCloud(){
 function applyRemoteDB(remote){
   DB=remote;
   var removedDup=dedupeStaffAccounts();
+  var removedDupStu=dedupeStudents();
+  var removedExp=cleanupRemovedExpenseCategories();
   try{localStorage.setItem('jm_v2',JSON.stringify(DB));}catch(e){}
-  if(removedDup)scheduleCloudSave();
+  if(removedDup||removedDupStu||removedExp)scheduleCloudSave();
   refreshEntireUI();
 }
 
@@ -2911,7 +3170,7 @@ function goPage(page, btn){
 }
 function refreshPage(page){
   if(page==='dash')renderDash();
-  if(page==='students'){fillAllSelects();renderStuSubjTabs();renderStudentList('');}
+  if(page==='students'){fillAllSelects();renderStuSubjTabs();renderStudentList('');renderApplyLinkText();}
   if(page==='sched'){
     var mt=document.getElementById('merge-toggle');
     if(mt)mt.checked=(DB.scheduleMergeConsecutive!==false);
@@ -3686,6 +3945,12 @@ function toggleWithdrawDateField(){
 function saveStudent(){
   const name=document.getElementById('ms-name').value.trim();
   if(!name){toast('이름을 입력해주세요');return;}
+  if(!editStudentId){
+    var dupe=DB.students.find(s=>s.name===name);
+    if(dupe&&!confirm('"'+name+'" 학생이 이미 등록되어 있습니다.\n그래도 새로 등록하시겠습니까? (동명이인이 아니라면 취소 후 기존 학생을 수정해주세요)')){
+      return;
+    }
+  }
   var isDirector=currentUser && currentUser.role==='director';
   var existingStu=editStudentId?DB.students.find(s=>s.id===editStudentId):null;
   var schoolSel=document.getElementById('ms-school').value;
@@ -6529,6 +6794,37 @@ function shareReport(){
     navigator.clipboard.writeText(text).then(afterCopy).catch(function(){fallbackCopy(text);});
   }else{
     fallbackCopy(text);
+  }
+}
+function getApplyLink(){
+  return window.location.origin+window.location.pathname.replace(/[^\/]*$/,'')+'?apply=1';
+}
+function renderApplyLinkText(){
+  var el=document.getElementById('apply-link-text');
+  if(el)el.textContent=getApplyLink();
+}
+function copyApplyLink(){
+  var link=getApplyLink();
+  var afterCopy=function(){toast('입회원서 링크가 복사되었습니다');};
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(link).then(afterCopy).catch(function(){fallbackCopy(link);});
+  }else{
+    fallbackCopy(link);
+  }
+}
+function smsApplyLink(){
+  var link=getApplyLink();
+  var body='제이엠 수학영어&리드인학원 입회원서입니다. 아래 링크에서 작성해주세요.\n'+link;
+  var isMobileDevice=/Android|iPhone|iPad|iPod|Mobi/i.test(navigator.userAgent||'');
+  if(isMobileDevice){
+    window.location.href='sms:?body='+encodeURIComponent(body);
+    return;
+  }
+  var afterCopy=function(){toast('입회원서 안내 문구가 복사되었습니다 — 문자 앱에 붙여넣어 보내주세요');};
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(body).then(afterCopy).catch(function(){fallbackCopy(body);});
+  }else{
+    fallbackCopy(body);
   }
 }
 function fallbackCopy(text){
