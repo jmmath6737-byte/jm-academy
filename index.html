@@ -1677,6 +1677,7 @@ let DB = {
   scheduleMergeConsecutive: true, // 연강(같은 명단 연속 시간대) 자동 합치기 표시 여부
   students: [], // {id, name, grade, school, phone, time, fee, subject, join, memo}
   schedule: JSON.parse(JSON.stringify(DEFAULT_SCHEDULE)),
+  scheduleTs: 0, // 수업표가 마지막으로 수정된 시각 — 기기 간 동기화 시 어느 쪽이 최신인지 비교하는 용도
   attendance: {}, // {name_YYYYMMDD: 'o'|'x'|'lt'|'mk'}
   vocabRecords: [], // {id, student, title, score, retest, miss, date}
   progs: [],       // {id, student, book, type, cur, next, pct, date}
@@ -2509,7 +2510,13 @@ function renderExtraPaymentsList(){
 // ════════════════════════════════════════
 //  유틸
 // ════════════════════════════════════════
+var _lastScheduleSig=null;
 function save(){
+  var curSchedSig=JSON.stringify(DB.schedule);
+  if(_lastScheduleSig!==null && curSchedSig!==_lastScheduleSig){
+    DB.scheduleTs=Date.now();
+  }
+  _lastScheduleSig=curSchedSig;
   DB.updatedAt=Date.now();
   try{localStorage.setItem('jm_v2',JSON.stringify(DB));}catch(e){}
   lastAppliedUpdatedAt=DB.updatedAt;
@@ -2756,6 +2763,7 @@ function load(){
             p.attKeyV2=true;
           }
           DB=p;
+          _lastScheduleSig=JSON.stringify(DB.schedule);
           return;
         }
       }
@@ -2949,6 +2957,18 @@ function mergeRemoteIntoLocal(remote,preferLocal){
       return !delSigSet[sig];
     });
   }
+  // 수업표 병합 — 셀 단위로 합치면 예전에 데이터가 꼬인 적이 있어서, 통째로 비교해 더 최신인 쪽을 채택함
+  // (이전에는 schedule이 병합 대상에서 아예 빠져있어서, 다른 기기가 방금 고친 수업표를
+  //  이 기기가 저장할 때 자기 화면에 남아있던 예전 수업표로 그대로 덮어써버리는 문제가 있었음)
+  if(remote.schedule){
+    var remoteSchedTs=remote.scheduleTs||0, localSchedTs=DB.scheduleTs||0;
+    if(remoteSchedTs>localSchedTs){
+      if(JSON.stringify(remote.schedule)!==JSON.stringify(DB.schedule))hadNewContent=true;
+      DB.schedule=JSON.parse(JSON.stringify(remote.schedule));
+      DB.scheduleTs=remoteSchedTs;
+      _lastScheduleSig=JSON.stringify(DB.schedule);
+    }
+  }
   dedupeStaffAccounts();
   if(remote.feedback){
     var localFb=DB.feedback||{},remoteFb=remote.feedback||{};
@@ -3020,6 +3040,7 @@ async function loadFromCloud(){
 
 function applyRemoteDB(remote){
   DB=remote;
+  _lastScheduleSig=JSON.stringify(DB.schedule);
   var removedDup=dedupeStaffAccounts();
   var removedDupStu=dedupeStudents();
   var removedExp=cleanupRemovedExpenseCategories();
