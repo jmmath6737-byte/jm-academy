@@ -174,8 +174,9 @@ button,select,input,textarea{font-family:inherit}
 .modal-btn-cancel{background:var(--s2);color:var(--t2)}
 
 /* ── 대시보드 ── */
-.dash-layout{display:grid;grid-template-columns:1fr 360px;gap:16px}
-@media(max-width:900px){.dash-layout{grid-template-columns:1fr}}
+.dash-layout{display:grid;grid-template-columns:minmax(0,1fr) 520px;gap:16px}
+@media(max-width:1300px){.dash-layout{grid-template-columns:minmax(0,1fr) 420px}}
+@media(max-width:1150px){.dash-layout{grid-template-columns:1fr}}
 
 /* 오늘 수업 체크 */
 .att-check-row{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--border)}
@@ -363,7 +364,7 @@ button,select,input,textarea{font-family:inherit}
 .stu-row{display:flex;align-items:center;gap:8px;padding:9px 14px;border-bottom:1px solid var(--border)}
 .stu-row:last-child{border-bottom:none}
 .stu-avatar2{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0}
-.stu-name2{font-size:13px;font-weight:500;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stu-name2{font-size:13px;font-weight:500;min-width:46px;max-width:90px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* 출결 버튼 그룹 */
 .att-group{display:flex;gap:3px;flex-shrink:0}
@@ -648,6 +649,11 @@ button,select,input,textarea{font-family:inherit}
             <button class="date-today-btn" onclick="goDashToday()">오늘</button>
             <button class="date-nav-btn" onclick="changeDashDate(1)">›</button>
           </div>
+          <!-- 오늘(조회 중인 날짜)의 보강 수업 — 수업표를 건드리지 않고 그 날짜에만 표시됨 -->
+          <div id="today-makeup-section" style="display:none;padding:10px 14px;border-bottom:1px solid var(--border);background:var(--amber-s)">
+            <div style="font-size:12px;font-weight:700;color:var(--amber);margin-bottom:6px">🔁 이 날짜의 보강 수업</div>
+            <div id="today-makeup-list"></div>
+          </div>
           <!-- 과목별 전달사항 입력창 -->
           <div class="subj-notice-section">
             <div class="subj-notice-title">📢 오늘 과목별 전달사항 <span style="font-size:10px;color:var(--t3);font-weight:400">(수업 전 입력해두세요)</span></div>
@@ -673,13 +679,29 @@ button,select,input,textarea{font-family:inherit}
         <div class="card">
           <div class="card-head"><span class="card-title">🔁 보강 등록 · 대기</span></div>
           <div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:6px">
-            <select id="dash-mk-stu" class="form-input" style="font-size:13px;padding:7px 9px">
-              <option value="">학생 선택...</option>
+            <select id="dash-mk-teacher" class="form-input" style="font-size:13px;padding:7px 9px" onchange="filterDashMkStudents()">
+              <option value="">담당선생님 선택...</option>
             </select>
-            <div style="display:flex;gap:6px">
-              <input type="text" id="dash-mk-det" class="form-input" placeholder="보강 일정 (예: 화 4:30)" style="flex:1;font-size:13px;padding:7px 9px" onkeydown="if(event.key==='Enter')addDashMakeup()">
-              <button class="btn btn-gold btn-sm" onclick="addDashMakeup()" style="flex-shrink:0">등록</button>
+            <select id="dash-mk-stu" class="form-input" style="font-size:13px;padding:7px 9px" disabled>
+              <option value="">먼저 담당선생님을 선택하세요</option>
+            </select>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <div style="flex:1;min-width:120px">
+                <div style="font-size:10px;color:var(--t3);margin-bottom:2px">결석일 · 시간</div>
+                <div style="display:flex;gap:4px">
+                  <input type="date" id="dash-mk-absent-date" class="form-input" style="font-size:12px;padding:6px;flex:1;min-width:0">
+                  <input type="time" id="dash-mk-absent-time" class="form-input" style="font-size:12px;padding:6px;width:82px;flex-shrink:0">
+                </div>
+              </div>
+              <div style="flex:1;min-width:120px">
+                <div style="font-size:10px;color:var(--t3);margin-bottom:2px">보강일 · 시간</div>
+                <div style="display:flex;gap:4px">
+                  <input type="date" id="dash-mk-makeup-date" class="form-input" style="font-size:12px;padding:6px;flex:1;min-width:0">
+                  <input type="time" id="dash-mk-makeup-time" class="form-input" style="font-size:12px;padding:6px;width:82px;flex-shrink:0">
+                </div>
+              </div>
             </div>
+            <button class="btn btn-gold btn-sm" onclick="addDashMakeup()">등록</button>
           </div>
           <div id="dash-makeup-list"><div style="padding:16px;text-align:center;color:var(--t3);font-size:13px">보강 대기 없음</div></div>
         </div>
@@ -756,6 +778,7 @@ button,select,input,textarea{font-family:inherit}
           연강 자동 합치기
         </label>
         <button class="btn btn-sm" id="sched-viewall-btn" style="background:var(--s2);color:var(--t2)" onclick="toggleSchedViewAll()">📋 전체보기</button>
+        <button class="btn btn-gold btn-sm" onclick="openSchedMkModal()">🔁 보강 등록</button>
         <button class="btn btn-blue btn-sm" onclick="openAddClsModal()">+ 반 추가</button>
       </div>
       <div class="sched-grid2" id="sched-grid2"><table class="sched-table" id="sched-table"></table></div>
@@ -1467,6 +1490,38 @@ button,select,input,textarea{font-family:inherit}
       <button class="modal-btn modal-btn-cancel" id="cal-ev-del-btn" style="display:none;color:var(--red)" onclick="deleteCalEvent()">삭제</button>
       <button class="modal-btn modal-btn-cancel" onclick="closeModal('modal-cal-event')">취소</button>
       <button class="modal-btn modal-btn-save" onclick="saveCalEvent()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── 수업표에서 보강 등록 모달 (수업표 자체는 건드리지 않음) ── -->
+<div class="modal-overlay" id="modal-sched-mk" onclick="if(event.target===this)closeModal('modal-sched-mk')">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-handle"></div>
+    <div class="modal-head">
+      <span class="modal-title">🔁 보강 등록</span>
+      <button class="modal-close" onclick="closeModal('modal-sched-mk')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:11px;color:var(--t3);margin-bottom:10px;line-height:1.5">여기서 등록해도 수업표(반복 시간표)는 전혀 바뀌지 않아요. 해당 학생이 그 결석일·보강일에만 보강 학생으로 기록됩니다.</div>
+      <div class="form-group"><label class="form-label">담당선생님</label>
+        <select class="form-input" id="sm-teacher" onchange="filterSchedMkStudents()"><option value="">담당선생님 선택...</option></select>
+      </div>
+      <div class="form-group"><label class="form-label">학생</label>
+        <select class="form-input" id="sm-stu" disabled><option value="">먼저 담당선생님을 선택하세요</option></select>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">결석일</label><input type="date" class="form-input" id="sm-absent-date"></div>
+        <div class="form-group"><label class="form-label">결석 시간</label><input type="time" class="form-input" id="sm-absent-time"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">보강일</label><input type="date" class="form-input" id="sm-makeup-date"></div>
+        <div class="form-group"><label class="form-label">보강 시간</label><input type="time" class="form-input" id="sm-makeup-time"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-btn modal-btn-cancel" onclick="closeModal('modal-sched-mk')">취소</button>
+      <button class="modal-btn modal-btn-save" onclick="saveSchedMakeup()">등록</button>
     </div>
   </div>
 </div>
@@ -2206,7 +2261,7 @@ function renderTeacherMonthlyCount(studentsThisMonth){
       '<span>'+subj+'</span><b>'+cnt+'명</b></div>';
   }).join('');
 }
-var EXPENSE_CATEGORIES=['직원 급여','월세·임대료','관리비','차량비','차량 유류비','물품비·교재비','인쇄·사무비','통신·인터넷','보험료','노란우산공제','세무 기장료','매쓰플랫','리드인시스템비','YBM 교재비','기타 지출'];
+var EXPENSE_CATEGORIES=['직원 급여','국민건강보험','국민연금','고용보험','산재보험','월세·임대료','관리비','차량비','차량 유류비','물품비·교재비','인쇄·사무비','통신·인터넷','보험료','노란우산공제','세무 기장료','매쓰플랫','리드인시스템비','YBM 교재비','기타 지출'];
 function getLedgerIncome(ym){
   var tuition=(DB.payments||[]).filter(function(p){return p.ym===ym;}).reduce(function(s,p){return s+feeToNumber(p.amount);},0);
   var lecture=(DB.extraPayments||[]).filter(function(p){return p.paid && p.category==='lecture' && (p.date||'').slice(0,7)===ym;}).reduce(function(s,p){return s+feeToNumber(p.amount);},0);
@@ -3215,13 +3270,38 @@ function refreshPage(page){
 // ════════════════════════════════════════
 function fillAllSelects(){
   const all=getAllStu();
-  ['att-stu-sel','vocab-stu-sel','vocab-filter-stu','report-stu-sel','prog-stu-sel','dash-mk-stu','extra-pay-stu'].forEach(id=>{
+  ['att-stu-sel','vocab-stu-sel','vocab-filter-stu','report-stu-sel','prog-stu-sel','extra-pay-stu'].forEach(id=>{
     const sel=document.getElementById(id);if(!sel)return;
     const cur=sel.value;
     sel.innerHTML=id==='vocab-filter-stu'?'<option value="">전체 학생</option>':'<option value="">학생 선택...</option>';
     all.forEach(n=>{const o=document.createElement('option');o.value=n;o.textContent=n;sel.appendChild(o);});
     if(cur&&all.includes(cur))sel.value=cur;
   });
+  var mkTeacherSel=document.getElementById('dash-mk-teacher');
+  if(mkTeacherSel){
+    var curTeacher=mkTeacherSel.value;
+    var subjects=getAllSubjectTeachers();
+    mkTeacherSel.innerHTML='<option value="">담당선생님 선택...</option>';
+    subjects.forEach(function(s){var o=document.createElement('option');o.value=s;o.textContent=s;mkTeacherSel.appendChild(o);});
+    if(curTeacher&&subjects.includes(curTeacher)){mkTeacherSel.value=curTeacher;filterDashMkStudents();}
+  }
+}
+function filterDashMkStudents(){
+  var teacher=document.getElementById('dash-mk-teacher');
+  var stuSel=document.getElementById('dash-mk-stu');
+  if(!stuSel)return;
+  var tv=teacher?teacher.value:'';
+  var cur=stuSel.value;
+  if(!tv){
+    stuSel.innerHTML='<option value="">먼저 담당선생님을 선택하세요</option>';
+    stuSel.disabled=true;
+    return;
+  }
+  var names=(DB.students||[]).filter(function(s){return (s.subject||'').indexOf(tv)>-1;}).map(function(s){return s.name;});
+  stuSel.disabled=false;
+  stuSel.innerHTML='<option value="">학생 선택...</option>';
+  names.forEach(function(n){var o=document.createElement('option');o.value=n;o.textContent=n;stuSel.appendChild(o);});
+  if(cur&&names.includes(cur))stuSel.value=cur;
 }
 
 // ════════════════════════════════════════
@@ -3265,6 +3345,7 @@ function renderDash(){
     try{renderWarnList((DB.vocabRecords||[]).filter(function(v){return v.retest==='yes';}));}catch(e){}
     try{renderTodayMemoFeed();}catch(e){}
     try{renderDashMakeup();}catch(e){}
+    try{renderTodayMakeups();}catch(e){}
     try{renderDashSchedSummary();}catch(e){}
     try{renderSubjView();}catch(e){console.warn('과목별 뷰 에러',e.message);}
     try{fillAllSelects();}catch(e){}
@@ -3319,6 +3400,7 @@ function renderDash(){
   try{renderWarnList(retest);}catch(e){}
   try{renderTodayMemoFeed();}catch(e){}
   try{renderDashMakeup();}catch(e){}
+  try{renderTodayMakeups();}catch(e){}
   try{renderDashSchedSummary();}catch(e){console.warn('시간표 에러',e.message);}
   try{renderSubjView();}catch(e){console.warn('과목별 뷰 에러',e.message);}
   try{fillAllSelects();}catch(e){}
@@ -3404,7 +3486,7 @@ function renderTodayAttList(students, day){
 
       // 출결 버튼 - IIFE로 클로저 완벽 고정
       ;(function(n, attKey, rid, curV){
-        [{v:'o',l:'출석'},{v:'lt',l:'지각'},{v:'x',l:'결석'},{v:'mk',l:'보강'}].forEach(function(it){
+        [{v:'o',l:'출석'},{v:'lt',l:'지각'},{v:'x',l:'결석'}].forEach(function(it){
           var btn=document.createElement('button');
           btn.className='ab '+it.v+(curV===it.v?' on':'');
           btn.textContent=it.l;
@@ -3650,6 +3732,106 @@ function renderWarnList(retest){
   });
 }
 
+function renderTodayMakeups(){
+  var sec=document.getElementById('today-makeup-section');
+  var list=document.getElementById('today-makeup-list');
+  if(!sec||!list)return;
+  var td=dashDateStr(); // YYYYMMDD
+  var tdDash=td.slice(0,4)+'-'+td.slice(4,6)+'-'+td.slice(6,8);
+  var todays=(DB.makeups||[]).filter(function(m){return m&&m.makeupDate===tdDash;});
+  if(!todays.length){sec.style.display='none';list.innerHTML='';return;}
+  sec.style.display='block';
+  list.innerHTML='';
+  todays.forEach(function(m){
+    list.appendChild(buildMakeupRow(m));
+  });
+}
+function makeupAttKey(id){return 'mk_'+id;}
+function makeupHwKey(id){return 'hwmk_'+id;}
+function buildMakeupRow(m){
+  var row=document.createElement('div');
+  row.style.cssText='display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid var(--border);flex-wrap:wrap';
+  var info=document.createElement('div');
+  info.style.cssText='flex:1;min-width:90px';
+  info.innerHTML='<div style="font-size:12.5px;font-weight:600">'+m.student+(m.subject?' <span style="font-size:10px;color:var(--t3);font-weight:400">['+m.subject+']</span>':'')+'</div>'+
+    '<div style="font-size:10.5px;color:var(--t3)">'+m.detail+'</div>';
+  var ag=document.createElement('div');ag.className='att-group';
+  var ak=makeupAttKey(m.id);
+  var cur=DB.attendance[ak]||'';
+  [{v:'o',l:'출석'},{v:'lt',l:'지각'},{v:'x',l:'결석'}].forEach(function(it){
+    var b=document.createElement('button');b.className='ab '+it.v+(cur===it.v?' on':'');b.textContent=it.l;
+    b.onclick=function(){
+      var p=DB.attendance[ak]||'';DB.attendance[ak]=(p===it.v?'':it.v);save();
+      ag.querySelectorAll('.ab').forEach(function(x){
+        var t=x.classList.contains('o')?'o':x.classList.contains('lt')?'lt':'x';
+        x.classList.toggle('on',DB.attendance[ak]===t);
+      });
+    };
+    ag.appendChild(b);
+  });
+  var sep=document.createElement('div');sep.className='hw-divider';
+  var hg=document.createElement('div');hg.className='hw-group';
+  var hk=makeupHwKey(m.id);
+  var hw=DB.homework[hk]||'';
+  [{v:'done',l:'숙✓'},{v:'notdone',l:'숙✗'}].forEach(function(it){
+    var b=document.createElement('button');b.className='hb '+it.v+(hw===it.v?' on':'');b.textContent=it.l;
+    b.onclick=function(){
+      var p=DB.homework[hk]||'';DB.homework[hk]=(p===it.v?'':it.v);save();
+      hg.querySelectorAll('.hb').forEach(function(x){
+        var t=x.classList.contains('done')?'done':'notdone';
+        x.classList.toggle('on',DB.homework[hk]===t);
+      });
+    };
+    hg.appendChild(b);
+  });
+  var editBtn=document.createElement('button');editBtn.className='btn btn-blue btn-xs';editBtn.textContent='수정';editBtn.style.flexShrink='0';
+  editBtn.onclick=function(){openMakeupEditModal(m);};
+  var delBtn=document.createElement('button');delBtn.className='btn btn-gray btn-xs';delBtn.textContent='삭제';delBtn.style.flexShrink='0';
+  delBtn.onclick=function(){deleteMakeupEntry(m);};
+  row.appendChild(info);row.appendChild(ag);row.appendChild(sep);row.appendChild(hg);row.appendChild(editBtn);row.appendChild(delBtn);
+  return row;
+}
+function buildMakeupRowSimple(m){
+  var row=document.createElement('div');row.className='warn-row';
+  var info=document.createElement('div');info.className='warn-info';
+  info.innerHTML='<div class="warn-name">'+m.student+(m.subject?' <span style="font-size:10px;color:var(--t3)">['+m.subject+']</span>':'')+'</div><div class="warn-sub">'+m.detail+'</div>';
+  var editBtn=document.createElement('button');editBtn.className='btn btn-blue btn-xs';editBtn.textContent='수정';editBtn.style.flexShrink='0';
+  editBtn.onclick=function(){openMakeupEditModal(m);};
+  var doneBtn=document.createElement('button');doneBtn.className='btn btn-green btn-xs';doneBtn.textContent='완료 처리';doneBtn.style.flexShrink='0';
+  doneBtn.onclick=function(){completeAndRemoveMakeup(m);};
+  row.appendChild(info);row.appendChild(editBtn);row.appendChild(doneBtn);
+  return row;
+}
+function completeAndRemoveMakeup(m){
+  if(!confirm('"'+m.student+'" 보강을 완료 처리하고 목록에서 지울까요?'))return;
+  var sig=(m.student||'')+'|'+(m.detail||'')+'|'+(m.date||'');
+  if(m.id!=null)tombstone('makeups',m.id);
+  DB.makeups=(DB.makeups||[]).filter(function(x){return x.id!==m.id;});
+  if(!DB.makeupDeletedSigs)DB.makeupDeletedSigs=[];
+  if(DB.makeupDeletedSigs.indexOf(sig)<0){
+    DB.makeupDeletedSigs.push(sig);
+    DB.makeupDeletedSigs=DB.makeupDeletedSigs.slice(-300);
+  }
+  save();
+  renderDashMakeup();
+  try{renderTodayMakeups();}catch(e){}
+  toast('완료 처리되었습니다');
+}
+function deleteMakeupEntry(m){
+  if(!confirm('"'+m.student+'" 보강 기록을 삭제할까요?'))return;
+  var sig=(m.student||'')+'|'+(m.detail||'')+'|'+(m.date||'');
+  if(m.id!=null)tombstone('makeups',m.id);
+  DB.makeups=(DB.makeups||[]).filter(function(x){return x.id!==m.id;});
+  if(!DB.makeupDeletedSigs)DB.makeupDeletedSigs=[];
+  if(DB.makeupDeletedSigs.indexOf(sig)<0){
+    DB.makeupDeletedSigs.push(sig);
+    DB.makeupDeletedSigs=DB.makeupDeletedSigs.slice(-300);
+  }
+  save();
+  renderDashMakeup();
+  try{renderTodayMakeups();}catch(e){}
+  toast('삭제되었습니다');
+}
 function renderDashMakeup(){
   var list=document.getElementById('dash-makeup-list');if(!list)return;
   if(DB.makeupDeletedSigs&&DB.makeupDeletedSigs.length&&DB.makeups&&DB.makeups.length){
@@ -3678,13 +3860,7 @@ function renderDashMakeup(){
   if(!DB.makeups||!DB.makeups.length){list.innerHTML='<div style="padding:14px;text-align:center;color:var(--t3);font-size:13px">보강 대기 없음</div>';return;}
   list.innerHTML='';
   DB.makeups.forEach(function(m){
-    var row=document.createElement('div');row.className='warn-row';
-    var info=document.createElement('div');info.className='warn-info';
-    info.innerHTML='<div class="warn-name">'+m.student+(m.subject?' <span style="font-size:10px;color:var(--t3)">['+m.subject+']</span>':'')+'</div><div class="warn-sub">'+m.detail+' · '+m.date+'</div>';
-    var btn=document.createElement('button');btn.className='btn btn-green btn-xs';btn.textContent='완료 처리';
-    var mSig=m.student+'|'+m.detail+'|'+m.date;
-    btn.onclick=function(){completeMakeup(mSig);};
-    row.appendChild(info);row.appendChild(btn);list.appendChild(row);
+    list.appendChild(buildMakeupRowSimple(m));
   });
 }
 function completeMakeup(sig){
@@ -4560,7 +4736,7 @@ function openAttModal(dk,ri,ci,subject,stu,time){
     var av=document.createElement('div');av.style.cssText='width:28px;height:28px;border-radius:50%;background:'+avatarColor(name)+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0';av.textContent=name[0];
     var nm=document.createElement('div');nm.style.cssText='font-size:13px;font-weight:500;flex:1;min-width:0';nm.textContent=name;
     var ag=document.createElement('div');ag.style.cssText='display:flex;gap:2px;flex-shrink:0';
-    [{v:'o',l:'출석'},{v:'lt',l:'지각'},{v:'x',l:'결석'},{v:'mk',l:'보강'}].forEach(function(it){
+    [{v:'o',l:'출석'},{v:'lt',l:'지각'},{v:'x',l:'결석'}].forEach(function(it){
       var b=document.createElement('button');b.className='ab '+it.v+(cur===it.v?' on':'');b.textContent=it.l;
       b.onclick=(function(n,k,v){return function(){
         var p=DB.attendance[k]||'';DB.attendance[k]=(p===v?'':v);save();
@@ -5895,16 +6071,137 @@ tryAutoLogin();
 })();
 
 
-function addDashMakeup(){
-  var s=document.getElementById('dash-mk-stu')?.value;
-  var d=document.getElementById('dash-mk-det')?.value.trim();
-  var subj=document.getElementById('dash-mk-subj')?.value||'';
+function fmtMonthDay(dateStr){
+  if(!dateStr)return '';
+  if(/^\d{8}$/.test(dateStr))dateStr=dateStr.slice(0,4)+'-'+dateStr.slice(4,6)+'-'+dateStr.slice(6,8);
+  var d=new Date(dateStr+'T00:00:00');
+  if(isNaN(d.getTime()))return dateStr;
+  var w=['일','월','화','수','목','금','토'];
+  return (d.getMonth()+1)+'/'+d.getDate()+'('+w[d.getDay()]+')';
+}
+function formatMakeupDetail(absentDate,absentTime,makeupDate,makeupTime){
+  var parts=[];
+  if(absentDate)parts.push('결석 '+fmtMonthDay(absentDate)+(absentTime?' '+absentTime:''));
+  if(makeupDate)parts.push('보강 '+fmtMonthDay(makeupDate)+(makeupTime?' '+makeupTime:''));
+  return parts.join(' → ')||'보강 일정 미정';
+}
+var curEditMakeupId=null;
+function setSchedMkModalMode(mode){
+  var titleEl=document.querySelector('#modal-sched-mk .modal-title');
+  var saveBtn=document.querySelector('#modal-sched-mk .modal-btn-save');
+  if(titleEl)titleEl.textContent=mode==='edit'?'🔁 보강 수정':'🔁 보강 등록';
+  if(saveBtn)saveBtn.textContent=mode==='edit'?'수정 저장':'등록';
+}
+function openSchedMkModal(){
+  curEditMakeupId=null;
+  setSchedMkModalMode('add');
+  var teacherSel=document.getElementById('sm-teacher');
+  if(teacherSel){
+    var subjects=getAllSubjectTeachers();
+    teacherSel.innerHTML='<option value="">담당선생님 선택...</option>';
+    subjects.forEach(function(s){var o=document.createElement('option');o.value=s;o.textContent=s;teacherSel.appendChild(o);});
+  }
+  filterSchedMkStudents();
+  var dates=getWeekDates();
+  var d=dates&&dates[curSchedDay]?dates[curSchedDay]:new Date();
+  var iso=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  var ad=document.getElementById('sm-absent-date');if(ad)ad.value=iso;
+  ['sm-absent-time','sm-makeup-date','sm-makeup-time'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+  openModal('modal-sched-mk');
+}
+function openMakeupEditModal(m){
+  curEditMakeupId=m.id;
+  setSchedMkModalMode('edit');
+  var teacherSel=document.getElementById('sm-teacher');
+  if(teacherSel){
+    var subjects=getAllSubjectTeachers();
+    if(m.subject&&subjects.indexOf(m.subject)<0)subjects=subjects.concat([m.subject]);
+    teacherSel.innerHTML='<option value="">담당선생님 선택...</option>';
+    subjects.forEach(function(s){var o=document.createElement('option');o.value=s;o.textContent=s;teacherSel.appendChild(o);});
+    teacherSel.value=m.subject||'';
+  }
+  filterSchedMkStudents();
+  var stuSel=document.getElementById('sm-stu');
+  if(stuSel){
+    var hasOpt=false;
+    for(var i=0;i<stuSel.options.length;i++){if(stuSel.options[i].value===m.student){hasOpt=true;break;}}
+    if(m.student&&!hasOpt){var o=document.createElement('option');o.value=m.student;o.textContent=m.student;stuSel.appendChild(o);}
+    stuSel.value=m.student||'';
+  }
+  var ad=document.getElementById('sm-absent-date');if(ad)ad.value=m.absentDate||'';
+  var at=document.getElementById('sm-absent-time');if(at)at.value=m.absentTime||'';
+  var md=document.getElementById('sm-makeup-date');if(md)md.value=m.makeupDate||'';
+  var mt=document.getElementById('sm-makeup-time');if(mt)mt.value=m.makeupTime||'';
+  openModal('modal-sched-mk');
+  if(!m.absentDate||!m.makeupDate){
+    toast('예전 방식으로 등록된 항목이라 날짜 정보가 없어요 — 결석일·보강일만 다시 선택해주세요');
+  }
+}
+function filterSchedMkStudents(){
+  var teacher=document.getElementById('sm-teacher');
+  var stuSel=document.getElementById('sm-stu');
+  if(!stuSel)return;
+  var tv=teacher?teacher.value:'';
+  if(!tv){
+    stuSel.innerHTML='<option value="">먼저 담당선생님을 선택하세요</option>';
+    stuSel.disabled=true;
+    return;
+  }
+  var names=(DB.students||[]).filter(function(s){return (s.subject||'').indexOf(tv)>-1;}).map(function(s){return s.name;});
+  stuSel.disabled=false;
+  stuSel.innerHTML='<option value="">학생 선택...</option>';
+  names.forEach(function(n){var o=document.createElement('option');o.value=n;o.textContent=n;stuSel.appendChild(o);});
+}
+function saveSchedMakeup(){
+  var teacher=document.getElementById('sm-teacher')?.value||'';
+  var s=document.getElementById('sm-stu')?.value||'';
+  var absentDate=document.getElementById('sm-absent-date')?.value||'';
+  var absentTime=document.getElementById('sm-absent-time')?.value||'';
+  var makeupDate=document.getElementById('sm-makeup-date')?.value||'';
+  var makeupTime=document.getElementById('sm-makeup-time')?.value||'';
+  if(!teacher){toast('담당선생님을 선택해주세요');return;}
   if(!s){toast('학생을 선택해주세요');return;}
-  if(!d){toast('보강 일정을 입력해주세요');return;}
-  DB.makeups.push({id:uid++,student:s,detail:d,subject:subj,date:todayKo()});
+  if(!absentDate){toast('결석일을 선택해주세요');return;}
+  if(!makeupDate){toast('보강일을 선택해주세요');return;}
+  var detail=formatMakeupDetail(absentDate,absentTime,makeupDate,makeupTime);
+  if(curEditMakeupId!=null){
+    var existing=(DB.makeups||[]).find(function(x){return x.id===curEditMakeupId;});
+    if(existing){
+      existing.student=s;existing.detail=detail;existing.subject=teacher;
+      existing.absentDate=absentDate;existing.absentTime=absentTime;
+      existing.makeupDate=makeupDate;existing.makeupTime=makeupTime;
+      existing.updatedAt=Date.now();
+    }
+    curEditMakeupId=null;
+    save();
+    closeModal('modal-sched-mk');
+    try{renderDashMakeup();}catch(e){}
+    try{renderTodayMakeups();}catch(e){}
+    toast(s+' 보강 정보가 수정되었습니다');
+    return;
+  }
+  DB.makeups.push({id:uid++,student:s,detail:detail,subject:teacher,absentDate:absentDate,absentTime:absentTime,makeupDate:makeupDate,makeupTime:makeupTime,date:todayKo()});
   save();
-  if(document.getElementById('dash-mk-det'))document.getElementById('dash-mk-det').value='';
-  if(document.getElementById('dash-mk-stu'))document.getElementById('dash-mk-stu').value='';
+  closeModal('modal-sched-mk');
+  try{renderDashMakeup();}catch(e){}
+  try{renderTodayMakeups();}catch(e){}
+  toast(s+' 보강 등록 완료 (수업표는 변경되지 않았어요)');
+}
+function addDashMakeup(){
+  var teacher=document.getElementById('dash-mk-teacher')?.value||'';
+  var s=document.getElementById('dash-mk-stu')?.value;
+  var absentDate=document.getElementById('dash-mk-absent-date')?.value||'';
+  var absentTime=document.getElementById('dash-mk-absent-time')?.value||'';
+  var makeupDate=document.getElementById('dash-mk-makeup-date')?.value||'';
+  var makeupTime=document.getElementById('dash-mk-makeup-time')?.value||'';
+  if(!teacher){toast('담당선생님을 선택해주세요');return;}
+  if(!s){toast('학생을 선택해주세요');return;}
+  if(!absentDate){toast('결석일을 선택해주세요');return;}
+  if(!makeupDate){toast('보강일을 선택해주세요');return;}
+  var detail=formatMakeupDetail(absentDate,absentTime,makeupDate,makeupTime);
+  DB.makeups.push({id:uid++,student:s,detail:detail,subject:teacher,absentDate:absentDate,absentTime:absentTime,makeupDate:makeupDate,makeupTime:makeupTime,date:todayKo()});
+  save();
+  ['dash-mk-stu','dash-mk-absent-date','dash-mk-absent-time','dash-mk-makeup-date','dash-mk-makeup-time'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
   renderDashMakeup();toast(s+' 보강 등록 완료');
 }
 
@@ -6359,6 +6656,7 @@ function renderSubjView(){
   var _dd=getDashDate();if(!_dd||isNaN(_dd.getTime()))return;
   var dayIdx=getDashDayIdx();
   var day=DB.schedule[DKEYS[dayIdx]],td=dashDateStr();
+  var tdDash=td.slice(0,4)+'-'+td.slice(4,6)+'-'+td.slice(6,8);
   if(!day||!day.rows||!day.rows.length||!day.cols){
     tabBar.innerHTML='';
     panels.innerHTML='<div style="padding:20px;text-align:center;color:var(--t3);font-size:14px">'+DKKO[dayIdx]+' — 등록된 수업 없음</div>';
@@ -6420,6 +6718,18 @@ function renderSubjView(){
       });
       panel.appendChild(dnWrap);
     }
+    // 이 과목·이 날짜의 보강 학생 — 정규 시간표 목록 위에 눈에 띄게 표시
+    var subjMakeups=(DB.makeups||[]).filter(function(m){return m&&m.makeupDate===tdDash&&m.subject===sg.subject;});
+    if(subjMakeups.length){
+      var mkWrap=document.createElement('div');
+      mkWrap.style.cssText='padding:8px 14px;background:var(--amber-s);border-bottom:1px solid var(--border)';
+      var mkTitle=document.createElement('div');
+      mkTitle.style.cssText='font-size:11px;font-weight:700;color:var(--amber);margin-bottom:4px';
+      mkTitle.textContent='🔁 보강 학생';
+      mkWrap.appendChild(mkTitle);
+      subjMakeups.forEach(function(m){mkWrap.appendChild(buildMakeupRow(m));});
+      panel.appendChild(mkWrap);
+    }
     // buildSubjTodayFeed 제거됨 — 아래 학습 기록 섹션이 하루 전체를 보여주도록 바뀌어 중복이라 삭제함
     sg.rows.forEach(function(rowData){
       var rh=document.createElement('div');rh.style.cssText='padding:5px 14px;background:var(--s2);border-bottom:1px solid var(--border);font-size:12px;font-weight:600;color:var(--t2)';
@@ -6432,7 +6742,7 @@ function renderSubjView(){
         var av=document.createElement('div');av.className='stu-avatar2';av.style.background=avatarColor(name);av.textContent=name[0];
         var nm=document.createElement('div');nm.className='stu-name2';nm.textContent=name;
         var ag=document.createElement('div');ag.className='att-group';
-        [{v:'o',l:'출석'},{v:'lt',l:'지각'},{v:'x',l:'결석'},{v:'mk',l:'보강'}].forEach(function(it){
+        [{v:'o',l:'출석'},{v:'lt',l:'지각'},{v:'x',l:'결석'}].forEach(function(it){
           var b=document.createElement('button');b.className='ab '+it.v+(cur2===it.v?' on':'');b.textContent=it.l;
           b.onclick=(function(n,k,v,rk){return function(){
             var p=DB.attendance[k]||'';DB.attendance[k]=(p===v?'':v);save();
@@ -6459,20 +6769,27 @@ function renderSubjView(){
     panels.appendChild(panel);
     buildDashMemoSection(panel,DKEYS[dayIdx],sg.rows[0]?sg.rows[0].time:'',ci,stuArr,td,sg.subject,'subj');
     var mkSec=document.createElement('div');mkSec.style.cssText='padding:10px 14px;border-top:1px solid var(--border);background:var(--amber-s)';
-    mkSec.innerHTML='<div style="font-size:12px;font-weight:700;color:var(--amber);margin-bottom:7px">🔁 보강 등록</div>';
-    var mkRow2=document.createElement('div');mkRow2.style.cssText='display:flex;gap:5px;flex-wrap:wrap';
+    mkSec.innerHTML='<div style="font-size:12px;font-weight:700;color:var(--amber);margin-bottom:7px">🔁 보강 등록 <span style="font-weight:400;color:var(--t3)">(결석일 '+fmtMonthDay(td)+' 자동 등록)</span></div>';
+    var mkRow2=document.createElement('div');mkRow2.style.cssText='display:flex;gap:5px;flex-wrap:wrap;align-items:center';
     var mkStu2=document.createElement('select');mkStu2.style.cssText='flex:1;min-width:90px;padding:6px 8px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:#fff';
     mkStu2.innerHTML='<option value="">학생 선택</option>'+stuArr.map(function(s){return '<option>'+s+'</option>';}).join('');
-    var mkDet2=document.createElement('input');mkDet2.type='text';mkDet2.placeholder='보강 일정';
-    mkDet2.style.cssText='flex:1;min-width:90px;padding:6px 8px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:#fff';
+    var mkDateLbl2=document.createElement('span');mkDateLbl2.textContent='보강일';mkDateLbl2.style.cssText='font-size:11px;color:var(--t3);flex-shrink:0';
+    var mkDate2=document.createElement('input');mkDate2.type='date';
+    mkDate2.style.cssText='padding:6px 8px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:#fff';
+    var mkTime2=document.createElement('input');mkTime2.type='time';
+    mkTime2.style.cssText='width:82px;padding:6px 8px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:#fff';
     var mkBtn2=document.createElement('button');mkBtn2.className='btn btn-gold btn-sm';mkBtn2.textContent='등록';
-    mkBtn2.onclick=(function(subj){return function(){
-      var s=mkStu2.value;var d=mkDet2.value.trim();
-      if(!s||!d){toast('학생과 일정을 입력해주세요');return;}
-      DB.makeups.push({id:uid++,student:s,detail:d,subject:subj,date:todayKo()});
-      save();mkDet2.value='';mkStu2.value='';renderDashMakeup();toast(s+' 보강 등록 완료');
-    };})(sg.subject);
-    mkRow2.appendChild(mkStu2);mkRow2.appendChild(mkDet2);mkRow2.appendChild(mkBtn2);
+    mkBtn2.onclick=(function(subj,absentDateRaw){
+      var absentDate=/^\d{8}$/.test(absentDateRaw)?(absentDateRaw.slice(0,4)+'-'+absentDateRaw.slice(4,6)+'-'+absentDateRaw.slice(6,8)):absentDateRaw;
+      return function(){
+      var s=mkStu2.value;var makeupDate=mkDate2.value;var makeupTime=mkTime2.value;
+      if(!s){toast('학생을 선택해주세요');return;}
+      if(!makeupDate){toast('보강일을 선택해주세요');return;}
+      var detail=formatMakeupDetail(absentDate,'',makeupDate,makeupTime);
+      DB.makeups.push({id:uid++,student:s,detail:detail,subject:subj,absentDate:absentDate,absentTime:'',makeupDate:makeupDate,makeupTime:makeupTime,date:todayKo()});
+      save();mkDate2.value='';mkTime2.value='';mkStu2.value='';renderDashMakeup();toast(s+' 보강 등록 완료');
+    };})(sg.subject,td);
+    mkRow2.appendChild(mkStu2);mkRow2.appendChild(mkDateLbl2);mkRow2.appendChild(mkDate2);mkRow2.appendChild(mkTime2);mkRow2.appendChild(mkBtn2);
     mkSec.appendChild(mkRow2);panel.appendChild(mkSec);
   });
   if(!Object.keys(subjGroups).length)panels.innerHTML='<div style="padding:20px;text-align:center;color:var(--t3);font-size:13px">오늘 수업 없음</div>';
