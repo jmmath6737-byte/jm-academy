@@ -521,19 +521,23 @@ button,select,input,textarea{font-family:inherit}
       </div>
       <div class="form-row">
         <div class="form-group"><label class="form-label">학생 연락처</label><input class="form-input" id="pa-stu-phone" placeholder="010-0000-0000"></div>
-        <div class="form-group"><label class="form-label">학부모 연락처 1 *</label><input class="form-input" id="pa-phone" placeholder="010-0000-0000"></div>
+        <div class="form-group"><label class="form-label">학부모 성함</label><input class="form-input" id="pa-parent-name" placeholder="학부모 성함"></div>
       </div>
       <div class="form-row">
+        <div class="form-group"><label class="form-label">학부모 연락처 1 *</label><input class="form-input" id="pa-phone" placeholder="010-0000-0000"></div>
         <div class="form-group"><label class="form-label">학부모 연락처 2</label><input class="form-input" id="pa-phone2" placeholder="010-0000-0000 (선택)"></div>
-        <div class="form-group"><label class="form-label">등하원 희망 장소</label><input class="form-input" id="pa-pickup" placeholder="예: OO아파트 정문"></div>
       </div>
-      <div class="form-group"><label class="form-label">집 주소 (차량 운행 시 필요)</label><input class="form-input" id="pa-address" placeholder="예: 구미시 ○○로 12, 101동 502호"></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">등원 장소</label><input class="form-input" id="pa-pickup-in" placeholder="예: OO아파트 정문"></div>
+        <div class="form-group"><label class="form-label">하원 장소</label><input class="form-input" id="pa-pickup-out" placeholder="예: OO아파트 정문"></div>
+      </div>
+      <div class="form-group"><label class="form-label">집 주소</label><input class="form-input" id="pa-address" placeholder="예: 구미시 ○○로 12, 101동 502호"></div>
       <div class="form-group"><label class="form-label">수강 과목</label><input class="form-input" id="pa-subject" placeholder="예: 수학, 영어"></div>
       <div class="form-group"><label class="form-label">선생님·원장님께 전달할 내용</label><textarea class="form-input" id="pa-memo" rows="3" placeholder="수업 시 참고했으면 하는 내용이나 부탁하실 내용을 적어주세요"></textarea></div>
 
       <div class="apply-consent-box">
         <b>[개인정보 수집·이용 동의]</b><br>
-        · 수집 항목: 학생 이름, 생년월일, 학교·학년, 학생·학부모 연락처, 주소, 등하원 장소, 상담 내용<br>
+        · 수집 항목: 학생 이름, 생년월일, 학교·학년, 학생 연락처, 학부모 성함·연락처, 주소, 등원/하원 장소, 상담 내용<br>
         · 수집 목적: 학원 상담 및 원생 등록 절차 진행<br>
         · 보유 기간: 상담·재원 기간 동안 보관하며, 등록하지 않으실 경우 요청 시 즉시 파기합니다<br>
         · 동의를 거부할 권리가 있으며, 동의하지 않으실 경우 상담 신청이 제한될 수 있습니다
@@ -729,11 +733,19 @@ button,select,input,textarea{font-family:inherit}
 
   <!-- ══ 원생관리 ══ -->
   <div class="page" id="page-students">
-    <div class="card" style="margin-bottom:12px;padding:10px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <span style="font-size:12px;color:var(--t2);white-space:nowrap">📋 입회원서 링크</span>
-      <code id="apply-link-text" style="font-size:11px;background:var(--s2);padding:5px 8px;border-radius:6px;word-break:break-all;flex:1;min-width:160px"></code>
-      <button class="btn btn-gray btn-xs" onclick="copyApplyLink()">복사</button>
-      <button class="btn btn-blue btn-xs" onclick="smsApplyLink()">📱 문자로 전송</button>
+    <div class="grid2" style="margin-bottom:12px;align-items:stretch">
+      <div class="card" style="padding:10px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span style="font-size:12px;color:var(--t2);white-space:nowrap">📋 입회원서 링크</span>
+        <code id="apply-link-text" style="font-size:11px;background:var(--s2);padding:5px 8px;border-radius:6px;word-break:break-all;flex:1;min-width:140px"></code>
+        <button class="btn btn-gray btn-xs" onclick="copyApplyLink()">복사</button>
+        <button class="btn btn-blue btn-xs" onclick="smsApplyLink()">📱 문자로 전송</button>
+      </div>
+      <div class="card" style="padding:10px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span style="font-size:12px;color:var(--t2);white-space:nowrap">📝 구글 상담신청서 링크</span>
+        <code id="consult-link-text" style="font-size:11px;background:var(--s2);padding:5px 8px;border-radius:6px;word-break:break-all;flex:1;min-width:140px">https://forms.gle/MLZSsBvb81Rv5qTh6</code>
+        <button class="btn btn-gray btn-xs" onclick="copyConsultLink()">복사</button>
+        <button class="btn btn-blue btn-xs" onclick="smsConsultLink()">📱 문자로 전송</button>
+      </div>
     </div>
     <div class="student-layout">
       <!-- 왼쪽: 학생 목록 -->
@@ -1364,17 +1376,21 @@ button,select,input,textarea{font-family:inherit}
       </div>
       <div class="form-row">
         <div class="form-group"><label class="form-label">학생 연락처</label><input class="form-input" id="ms-stu-phone" placeholder="010-0000-0000"></div>
-        <div class="form-group"><label class="form-label">학부모 연락처 1</label><input class="form-input" id="ms-phone" placeholder="010-0000-0000"></div>
+        <div class="form-group"><label class="form-label">학부모 성함</label><input class="form-input" id="ms-parent-name" placeholder="학부모 성함"></div>
       </div>
       <div class="form-row">
+        <div class="form-group"><label class="form-label">학부모 연락처 1</label><input class="form-input" id="ms-phone" placeholder="010-0000-0000"></div>
         <div class="form-group"><label class="form-label">학부모 연락처 2</label><input class="form-input" id="ms-phone2" placeholder="010-0000-0000 (선택)"></div>
-        <div class="form-group"><label class="form-label">등하원 장소</label><input class="form-input" id="ms-pickup" placeholder="예: OO아파트 정문"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">등원 장소</label><input class="form-input" id="ms-pickup-in" placeholder="예: OO아파트 정문"></div>
+        <div class="form-group"><label class="form-label">하원 장소</label><input class="form-input" id="ms-pickup-out" placeholder="예: OO아파트 정문"></div>
       </div>
       <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--t1);margin-bottom:14px;cursor:pointer">
         <input type="checkbox" id="ms-channel-added" style="width:16px;height:16px">
         💬 카카오톡 채널 추가 완료 (체크 시 강사가 채널로 직접 메시지 발송 가능)
       </label>
-      <div class="form-group"><label class="form-label">집 주소 (차량 운행용)</label><input class="form-input" id="ms-address" placeholder="예: 구미시 ○○로 12, 101동 502호"></div>
+      <div class="form-group"><label class="form-label">집 주소</label><input class="form-input" id="ms-address" placeholder="예: 구미시 ○○로 12, 101동 502호"></div>
       <div class="form-group"><label class="form-label">수강 과목</label><input class="form-input" id="ms-subject" placeholder="예: 영어 김윤진, 수학 이지혜" oninput="renderMsSubjectChips();renderMsTimeChips();">
         <div id="ms-subject-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div>
       </div>
@@ -1908,10 +1924,13 @@ function submitPublicApplication(){
     grade:document.getElementById('pa-grade').value,
     school:school,
     stuPhone:document.getElementById('pa-stu-phone').value.trim(),
+    parentName:document.getElementById('pa-parent-name').value.trim(),
     phone:phone,
     phone2:document.getElementById('pa-phone2').value.trim(),
     address:document.getElementById('pa-address').value.trim(),
-    pickup:document.getElementById('pa-pickup').value.trim(),
+    pickupIn:document.getElementById('pa-pickup-in').value.trim(),
+    pickupOut:document.getElementById('pa-pickup-out').value.trim(),
+    pickup:document.getElementById('pa-pickup-in').value.trim(),
     subjectWish:document.getElementById('pa-subject').value.trim(),
     memo:document.getElementById('pa-memo').value.trim(),
     consent:true,
@@ -3981,7 +4000,9 @@ function openStudentModal(id=null){
   document.getElementById('ms-birth').value=stu?stu.birth||'':'';
   document.getElementById('ms-stu-phone').value=stu?stu.stuPhone||'':'';
   document.getElementById('ms-address').value=stu?stu.address||'':'';
-  document.getElementById('ms-pickup').value=stu?stu.pickup||'':'';
+  document.getElementById('ms-pickup-in').value=stu?(stu.pickupIn||stu.pickup||''):'';
+  document.getElementById('ms-pickup-out').value=stu?stu.pickupOut||'':'';
+  document.getElementById('ms-parent-name').value=stu?stu.parentName||'':'';
   document.getElementById('ms-join').value=stu?stu.join||'':'';
   document.getElementById('ms-channel-added').checked=!!(stu&&stu.channelAdded);
   var schoolSel=document.getElementById('ms-school');
@@ -4161,8 +4182,11 @@ function saveStudent(){
     stuPhone:document.getElementById('ms-stu-phone').value.trim(),
     phone:document.getElementById('ms-phone').value.trim(),
     phone2:document.getElementById('ms-phone2').value.trim(),
+    parentName:document.getElementById('ms-parent-name').value.trim(),
     address:document.getElementById('ms-address').value.trim(),
-    pickup:document.getElementById('ms-pickup').value.trim(),
+    pickupIn:document.getElementById('ms-pickup-in').value.trim(),
+    pickupOut:document.getElementById('ms-pickup-out').value.trim(),
+    pickup:document.getElementById('ms-pickup-in').value.trim(),
     time:document.getElementById('ms-time').value.trim(),
     fee:isDirector?document.getElementById('ms-fee').value.trim():(existingStu?existingStu.fee||'':''),
     subject:document.getElementById('ms-subject').value.trim(),
@@ -4340,7 +4364,7 @@ function showStudentProfile(name){
     var infoGrid=document.createElement('div');infoGrid.className='grid2';infoGrid.style.marginBottom='14px';
     var c1=document.createElement('div');c1.className='card';
     c1.innerHTML='<div class="card-head"><span class="card-title">기본 정보</span></div><div class="card-body">';
-    var infoRows=[['생년월일',prof.birth],['학생 연락처',prof.stuPhone],['학부모 연락처1',prof.phone],['학부모 연락처2',prof.phone2],['집 주소',prof.address],['등하원 장소',prof.pickup],['입회일',prof.join],['수업 시간',prof.time],['월 수업료',prof.fee],['수강 과목',prof.subject],['재원 상태',prof.status==='withdrawn'?('퇴원 ('+(prof.withdrawDate||'-')+')'):'재원'],['카카오톡 채널',prof.channelAdded?'💬✅ 추가 완료':'💬✕ 미추가']];
+    var infoRows=[['생년월일',prof.birth],['학생 연락처',prof.stuPhone],['학부모 성함',prof.parentName],['학부모 연락처1',prof.phone],['학부모 연락처2',prof.phone2],['집 주소',prof.address],['등원 장소',prof.pickupIn||prof.pickup],['하원 장소',prof.pickupOut],['입회일',prof.join],['수업 시간',prof.time],['월 수업료',prof.fee],['수강 과목',prof.subject],['재원 상태',prof.status==='withdrawn'?('퇴원 ('+(prof.withdrawDate||'-')+')'):'재원'],['카카오톡 채널',prof.channelAdded?'💬✅ 추가 완료':'💬✕ 미추가']];
     if(!(currentUser && currentUser.role==='director')) infoRows=infoRows.filter(function(r){return r[0]!=='월 수업료';});
     infoRows.forEach(function(row){
       if(!row[1])return;
@@ -7159,6 +7183,29 @@ function smsApplyLink(){
     return;
   }
   var afterCopy=function(){toast('입회원서 안내 문구가 복사되었습니다 — 문자 앱에 붙여넣어 보내주세요');};
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(body).then(afterCopy).catch(function(){fallbackCopy(body);});
+  }else{
+    fallbackCopy(body);
+  }
+}
+var GOOGLE_CONSULT_LINK='https://forms.gle/MLZSsBvb81Rv5qTh6';
+function copyConsultLink(){
+  var afterCopy=function(){toast('구글 상담신청서 링크가 복사되었습니다');};
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(GOOGLE_CONSULT_LINK).then(afterCopy).catch(function(){fallbackCopy(GOOGLE_CONSULT_LINK);});
+  }else{
+    fallbackCopy(GOOGLE_CONSULT_LINK);
+  }
+}
+function smsConsultLink(){
+  var body='제이엠 수학영어&리드인학원 상담신청서입니다. 아래 링크에서 작성해주세요.\n'+GOOGLE_CONSULT_LINK;
+  var isMobileDevice=/Android|iPhone|iPad|iPod|Mobi/i.test(navigator.userAgent||'');
+  if(isMobileDevice){
+    window.location.href='sms:?body='+encodeURIComponent(body);
+    return;
+  }
+  var afterCopy=function(){toast('상담신청서 안내 문구가 복사되었습니다 — 문자 앱에 붙여넣어 보내주세요');};
   if(navigator.clipboard&&navigator.clipboard.writeText){
     navigator.clipboard.writeText(body).then(afterCopy).catch(function(){fallbackCopy(body);});
   }else{
