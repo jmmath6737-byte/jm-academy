@@ -427,12 +427,15 @@ button,select,input,textarea{font-family:inherit}
 .memo-cat-btn{flex:1;padding:6px 4px;text-align:center;font-size:12px;font-weight:600;cursor:pointer;border:none;background:var(--s2);color:var(--t2);transition:all .15s}
 .memo-cat-btn.warn.on{background:var(--red);color:#fff}
 .memo-cat-btn.praise.on{background:var(--green);color:#fff}
+.memo-cat-btn.note.on{background:var(--purple);color:#fff}
 .memo-cat-input-row{display:flex;gap:6px;align-items:flex-start;margin-top:6px}
 .memo-item-warn{border-left:3px solid var(--red)}
 .memo-item-praise{border-left:3px solid var(--green)}
+.memo-item-note{border-left:3px solid var(--purple)}
 .memo-cat-tag{font-size:10px;font-weight:700;padding:1px 6px;border-radius:8px;flex-shrink:0}
 .memo-cat-tag-warn{background:var(--red-s);color:var(--red)}
 .memo-cat-tag-praise{background:var(--green-s);color:var(--green)}
+.memo-cat-tag-note{background:var(--purple-s);color:var(--purple)}
 
 /* 대시보드 뷰 전환 */
 .view-toggle{display:flex;gap:4px;margin-left:auto}
@@ -642,6 +645,7 @@ button,select,input,textarea{font-family:inherit}
               <button class="view-toggle-btn" id="vbtn-subj" onclick="switchDashView('subj')">📚 과목별</button>
             </div>
             <button class="link-btn" onclick="goPage('sched',document.querySelector('.nav-item:nth-child(3)'))">수업표 보기</button>
+            <button class="btn btn-sm" style="background:#fee500;color:#3c1e1e;font-weight:700" onclick="openAcademyKakaoChannel()">💬 학원 채널 바로가기</button>
           </div>
           <!-- 날짜 네비게이터 -->
           <div class="dash-date-nav">
@@ -1782,6 +1786,13 @@ let uid=Date.now();
 // ⚠️ 아래에 학원 카카오톡 채널 URL을 넣어주세요 (카카오톡 채널 관리자센터 > 상세설정 > 채널 URL 에서 복사).
 // 예: 'https://pf.kakao.com/_xxXXxxx' — 비워두면 신청완료 화면에 채널 추가 버튼이 나타나지 않습니다.
 const KAKAO_CHANNEL_URL='http://pf.kakao.com/_uukyn';
+// 카카오 비즈니스 채널 관리자센터의 "내 채팅" 페이지 — 대시보드 바로가기 버튼은 이 링크로 엽니다 (선생님이 실제 대화 목록을 바로 볼 수 있도록).
+const KAKAO_BUSINESS_CHAT_URL='https://business.kakao.com/_uukyn/chats?t_src=business_partnercenter&t_ch=lnb&t_obj=%EB%82%B4%EC%B1%84%ED%8C%85_%ED%81%B4%EB%A6%AD';
+function openAcademyKakaoChannel(){
+  var url=KAKAO_BUSINESS_CHAT_URL||KAKAO_CHANNEL_URL;
+  if(!url){toast('설정된 학원 카카오톡 채널 링크가 없어요');return;}
+  window.open(url,'_blank');
+}
 const DEFAULT_ACCOUNTS=[
   {loginId:'director',   pw:'jm2026!', name:'장영은 원장',   role:'director'},
   {loginId:'leejihye',   pw:'1234',    name:'이지혜 선생님', role:'teacher'},
@@ -3273,7 +3284,16 @@ function refreshPage(page){
   }
   if(page==='att'){fillAllSelects();renderAttSummary();}
   if(page==='study'){if(typeof refreshStudyPage==='function')refreshStudyPage();else fillAllSelects();}
-  if(page==='report'){fillAllSelects();renderReport();}
+  if(page==='report'){
+    var activeEl=document.activeElement;
+    var editingSummary=activeEl&&activeEl.id==='parent-summary-text';
+    if(editingSummary){
+      // 리포트 요약을 지금 직접 수정 중일 때는, 다른 선생님의 저장으로 인한 배경 동기화가
+      // 이 화면을 다시 그리면서 입력 중이던 내용을 지워버리지 않도록 새로고침을 건너뜀
+      return;
+    }
+    fillAllSelects();renderReport();
+  }
   if(page==='calendar')renderCalendar();
   if(page==='tasks')refreshTasksPage();
   if(page==='payments'){fillAllSelects();renderPaymentsPage();}
@@ -3762,12 +3782,13 @@ function renderTodayMakeups(){
   sec.style.display='block';
   list.innerHTML='';
   todays.forEach(function(m){
-    list.appendChild(buildMakeupRow(m));
+    list.appendChild(buildMakeupRow(m,false));
   });
 }
 function makeupAttKey(id){return 'mk_'+id;}
 function makeupHwKey(id){return 'hwmk_'+id;}
-function buildMakeupRow(m){
+function buildMakeupRow(m,showActions){
+  if(showActions===undefined)showActions=true;
   var row=document.createElement('div');
   row.style.cssText='display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid var(--border);flex-wrap:wrap';
   var info=document.createElement('div');
@@ -3803,11 +3824,14 @@ function buildMakeupRow(m){
     };
     hg.appendChild(b);
   });
-  var editBtn=document.createElement('button');editBtn.className='btn btn-blue btn-xs';editBtn.textContent='수정';editBtn.style.flexShrink='0';
-  editBtn.onclick=function(){openMakeupEditModal(m);};
-  var delBtn=document.createElement('button');delBtn.className='btn btn-gray btn-xs';delBtn.textContent='삭제';delBtn.style.flexShrink='0';
-  delBtn.onclick=function(){deleteMakeupEntry(m);};
-  row.appendChild(info);row.appendChild(ag);row.appendChild(sep);row.appendChild(hg);row.appendChild(editBtn);row.appendChild(delBtn);
+  row.appendChild(info);row.appendChild(ag);row.appendChild(sep);row.appendChild(hg);
+  if(showActions){
+    var editBtn=document.createElement('button');editBtn.className='btn btn-blue btn-xs';editBtn.textContent='수정';editBtn.style.flexShrink='0';
+    editBtn.onclick=function(){openMakeupEditModal(m);};
+    var delBtn=document.createElement('button');delBtn.className='btn btn-gray btn-xs';delBtn.textContent='삭제';delBtn.style.flexShrink='0';
+    delBtn.onclick=function(){deleteMakeupEntry(m);};
+    row.appendChild(editBtn);row.appendChild(delBtn);
+  }
   return row;
 }
 function buildMakeupRowSimple(m){
@@ -4208,6 +4232,23 @@ function saveStudent(){
   toast(editStudentId?'수정 완료':'원생 등록 완료');
   if(!editStudentId)showStudentProfile(stu.name);
 }
+function smsParent(name){
+  var prof=getStuProfile(name);
+  var phone=prof&&(prof.phone||prof.phone2);
+  if(!phone){toast('등록된 학부모 연락처가 없습니다');return;}
+  var digits=phone.replace(/[^0-9]/g,'');
+  var isMobileDevice=/Android|iPhone|iPad|iPod|Mobi/i.test(navigator.userAgent||'');
+  if(isMobileDevice){
+    window.location.href='sms:'+digits;
+    return;
+  }
+  var afterCopy=function(){toast(name+' 학부모님 번호('+phone+')가 복사되었습니다 — 문자 앱에 붙여넣어 보내주세요');};
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(phone).then(afterCopy).catch(function(){fallbackCopy(phone);});
+  }else{
+    fallbackCopy(phone);
+  }
+}
 function renderStudentList(q=''){
   var list=document.getElementById('student-list-scroll');
   var all=getAllStu();
@@ -4235,11 +4276,13 @@ function renderStudentList(q=''){
     var gradeLabel=prof?gradeToLabel(prof.grade):'';
     var subLine=prof?(((prof.school||'')+' '+gradeLabel).trim()||'미등록'):'미등록';
     var chBadge=prof?('<span onclick="event.stopPropagation();toggleChannelAdded(\''+name.replace(/'/g,"\\'")+'\')" title="'+(prof.channelAdded?'카카오톡 채널 추가 완료 — 클릭하면 해제':'채널 미추가 — 클릭하면 완료로 표시')+'" style="cursor:pointer;margin-left:6px">'+(prof.channelAdded?'💬✅':'💬✕')+'</span>'):'';
+    var smsBtn=(prof&&(prof.phone||prof.phone2))?('<button class="btn btn-gray btn-xs" style="margin-left:6px;flex-shrink:0" title="학부모님께 문자 보내기" onclick="event.stopPropagation();smsParent(\''+name.replace(/'/g,"\\'")+'\')">📱 문자</button>'):'';
     item.innerHTML=`<div class="stu-avatar" style="background:${avatarColor(name)};width:34px;height:34px;font-size:13px">${name[0]}</div>
     <div class="info">
       <div class="name">${name}</div>
       <div class="sub">${subLine}${chBadge}</div>
-    </div>`;
+    </div>
+    ${smsBtn}`;
     item.onclick=()=>showStudentProfile(name);
     list.appendChild(item);
   });
@@ -4340,6 +4383,7 @@ function showStudentProfile(name){
   var memos=(DB.classMemos||[]).filter(function(m){return m.student===name;});
   var warnMemos=memos.filter(function(m){return m.cat==='warn';});
   var praiseMemos=memos.filter(function(m){return m.cat==='praise';});
+  var makeupMemos=memos.filter(function(m){return m.cat==='note';});
   // 피드백
   var fb=(DB.feedback&&DB.feedback['feedback_'+name])||{};
 
@@ -4356,7 +4400,8 @@ function showStudentProfile(name){
     '<div class="profile-stat"><div class="val">'+(avgScore||'—')+(avgScore?'점':'')+'</div><div class="lbl">평균점수</div></div>'+
     '<div class="profile-stat"><div class="val">'+makeups.length+'</div><div class="lbl">보강</div></div>'+
     '</div>'+
-    '<button class="btn btn-gray btn-sm" style="position:absolute;top:14px;right:14px" onclick="openStudentModal('+(prof?prof.id:'null')+')">수정</button>';
+    '<button class="btn btn-gray btn-sm" style="position:absolute;top:14px;right:14px" onclick="openStudentModal('+(prof?prof.id:'null')+')">수정</button>'+
+    (prof&&(prof.phone||prof.phone2)?'<button class="btn btn-blue btn-sm" style="position:absolute;top:14px;right:64px" onclick="smsParent(\''+name.replace(/'/g,"\\'")+'\')">📱 문자</button>':'');
   panel.appendChild(hdr);
 
   // 기본정보 + 수업정보
@@ -4467,6 +4512,11 @@ function showStudentProfile(name){
       var pLbl=document.createElement('div');pLbl.style.cssText='font-size:12px;font-weight:600;color:var(--green);margin:8px 0 5px';pLbl.textContent='👍 칭찬할점';
       mBody.appendChild(pLbl);
       praiseMemos.forEach(function(m){mBody.appendChild(buildProfileMemoRow(m));});
+    }
+    if(makeupMemos.length){
+      var mLbl=document.createElement('div');mLbl.style.cssText='font-size:12px;font-weight:600;color:var(--purple);margin:8px 0 5px';mLbl.textContent='📝 참고사항';
+      mBody.appendChild(mLbl);
+      makeupMemos.forEach(function(m){mBody.appendChild(buildProfileMemoRow(m));});
     }
     panel.appendChild(memoCard);
   }
@@ -4788,15 +4838,17 @@ function openAttModal(dk,ri,ci,subject,stu,time){
   var cw=document.createElement('div');cw.className='memo-cat-wrap';
   var wb=document.createElement('button');wb.className='memo-cat-btn warn on';wb.textContent='⚠️ 주의사항';
   var pb=document.createElement('button');pb.className='memo-cat-btn praise';pb.textContent='👍 칭찬할점';
+  var mb=document.createElement('button');mb.className='memo-cat-btn note';mb.textContent='📝 참고사항';
   var selCat='warn';
-  wb.onclick=function(){selCat='warn';wb.classList.add('on');pb.classList.remove('on');};
-  pb.onclick=function(){selCat='praise';pb.classList.add('on');wb.classList.remove('on');};
-  cw.appendChild(wb);cw.appendChild(pb);s2.appendChild(cw);
+  wb.onclick=function(){selCat='warn';wb.classList.add('on');pb.classList.remove('on');mb.classList.remove('on');mt.placeholder='주의사항을 입력하세요 (예: 집중력 부족, 태도 등)';};
+  pb.onclick=function(){selCat='praise';pb.classList.add('on');wb.classList.remove('on');mb.classList.remove('on');mt.placeholder='칭찬할 점을 입력하세요 (예: 태도 우수, 성취 등)';};
+  mb.onclick=function(){selCat='note';mb.classList.add('on');wb.classList.remove('on');pb.classList.remove('on');mt.placeholder='참고사항을 입력하세요 (예: 준비물, 전달 메모 등)';};
+  cw.appendChild(wb);cw.appendChild(pb);cw.appendChild(mb);s2.appendChild(cw);
   var ml=document.createElement('div');ml.id='modal-memo-list';s2.appendChild(ml);
   var mr=document.createElement('div');mr.className='cls-memo-input-row';
   var ms=document.createElement('select');ms.className='cls-memo-stu-sel';ms.id='modal-memo-stu';
   ms.innerHTML='<option value="">전체</option>'+stu.map(function(s){return '<option>'+s+'</option>';}).join('');
-  var mt=document.createElement('textarea');mt.className='cls-memo-input';mt.id='modal-memo-text';mt.rows=2;mt.placeholder='내용 입력...';
+  var mt=document.createElement('textarea');mt.className='cls-memo-input';mt.id='modal-memo-text';mt.rows=2;mt.placeholder='주의사항을 입력하세요 (예: 집중력 부족, 태도 등)';
   var ab=document.createElement('button');ab.className='cls-memo-add-btn';ab.textContent='추가';
   ab.onclick=function(){
     var student=ms.value||'';var text=mt.value.trim();
@@ -5445,6 +5497,7 @@ function renderReport(){
   var memos=(DB.classMemos||[]).filter(function(m){return m.student===name;});
   var warnMemos=memos.filter(function(m){return m.cat==='warn';});
   var praiseMemos=memos.filter(function(m){return m.cat==='praise';});
+  var makeupMemos=memos.filter(function(m){return m.cat==='note';});
   // 주간/월간 피드백
   var feedbackKey='feedback_'+name;
   var feedback=DB.feedback?DB.feedback[feedbackKey]||{}:{};
@@ -5526,7 +5579,14 @@ function renderReport(){
         '<div style="font-size:13px;margin-top:2px">'+m.text+'</div></div>';
     });
   }
-  if(!warnMemos.length&&!praiseMemos.length)memoCard.innerHTML+='<div style="color:var(--t3);font-size:13px">메모 없음</div>';
+  if(makeupMemos.length){
+    memoCard.innerHTML+='<div style="font-size:12px;font-weight:600;color:var(--purple);margin:8px 0 6px">📝 참고사항</div>';
+    makeupMemos.slice(0,5).forEach(function(m){
+      memoCard.innerHTML+='<div class="vocab-item"><div style="font-size:11px;color:var(--t2)">'+m.date+' '+m.ts+(m.subject?' ['+m.subject+']':'')+'</div>'+
+        '<div style="font-size:13px;margin-top:2px">'+m.text+'</div></div>';
+    });
+  }
+  if(!warnMemos.length&&!praiseMemos.length&&!makeupMemos.length)memoCard.innerHTML+='<div style="color:var(--t3);font-size:13px">메모 없음</div>';
   memoCard.innerHTML+='</div>';
   el.appendChild(memoCard);
 
@@ -6186,7 +6246,6 @@ function saveSchedMakeup(){
   if(!teacher){toast('담당선생님을 선택해주세요');return;}
   if(!s){toast('학생을 선택해주세요');return;}
   if(!absentDate){toast('결석일을 선택해주세요');return;}
-  if(!makeupDate){toast('보강일을 선택해주세요');return;}
   var detail=formatMakeupDetail(absentDate,absentTime,makeupDate,makeupTime);
   if(curEditMakeupId!=null){
     var existing=(DB.makeups||[]).find(function(x){return x.id===curEditMakeupId;});
@@ -6209,7 +6268,7 @@ function saveSchedMakeup(){
   closeModal('modal-sched-mk');
   try{renderDashMakeup();}catch(e){}
   try{renderTodayMakeups();}catch(e){}
-  toast(s+' 보강 등록 완료 (수업표는 변경되지 않았어요)');
+  toast(makeupDate?(s+' 보강 등록 완료 (수업표는 변경되지 않았어요)'):(s+' 보강 등록 완료 (날짜 미정 — 사이드바에서 나중에 지정해주세요)'));
 }
 function addDashMakeup(){
   var teacher=document.getElementById('dash-mk-teacher')?.value||'';
@@ -6256,24 +6315,26 @@ function buildDashMemoSection(body,gdk,gtime,gci,gStudents,td,gsubject,viewScope
   var catWrap=document.createElement('div');catWrap.className='memo-cat-wrap';
   var wBtn=document.createElement('button');wBtn.className='memo-cat-btn warn on';wBtn.textContent='⚠️ 주의사항';
   var pBtn=document.createElement('button');pBtn.className='memo-cat-btn praise';pBtn.textContent='👍 칭찬할점';
+  var mBtn=document.createElement('button');mBtn.className='memo-cat-btn note';mBtn.textContent='📝 참고사항';
   var state={cat:'warn'};
-  wBtn.onclick=function(){state.cat='warn';wBtn.classList.add('on');pBtn.classList.remove('on');};
-  pBtn.onclick=function(){state.cat='praise';pBtn.classList.add('on');wBtn.classList.remove('on');};
-  catWrap.appendChild(wBtn);catWrap.appendChild(pBtn);memoSec.appendChild(catWrap);
+  wBtn.onclick=function(){state.cat='warn';wBtn.classList.add('on');pBtn.classList.remove('on');mBtn.classList.remove('on');ta.placeholder='주의사항을 입력하세요 (예: 집중력 부족, 태도 등)';};
+  pBtn.onclick=function(){state.cat='praise';pBtn.classList.add('on');wBtn.classList.remove('on');mBtn.classList.remove('on');ta.placeholder='칭찬할 점을 입력하세요 (예: 태도 우수, 성취 등)';};
+  mBtn.onclick=function(){state.cat='note';mBtn.classList.add('on');wBtn.classList.remove('on');pBtn.classList.remove('on');ta.placeholder='참고사항을 입력하세요 (예: 준비물, 전달 메모 등)';};
+  catWrap.appendChild(wBtn);catWrap.appendChild(pBtn);catWrap.appendChild(mBtn);memoSec.appendChild(catWrap);
   var listId='dash-memo-'+(viewScope||'x')+'-'+gtime+'-'+gci;
   var memoList=document.createElement('div');memoList.className='cls-memo-list';memoList.id=listId;
   memoSec.appendChild(memoList);
   var inputRow=document.createElement('div');inputRow.className='cls-memo-input-row';
   var stuSel=document.createElement('select');stuSel.className='cls-memo-stu-sel';
   stuSel.innerHTML='<option value="">전체</option>'+gStudents.map(function(s){return '<option>'+s+'</option>';}).join('');
-  var ta=document.createElement('textarea');ta.className='cls-memo-input';ta.rows=2;ta.placeholder='주의사항 또는 칭찬할 점...';
+  var ta=document.createElement('textarea');ta.className='cls-memo-input';ta.rows=2;ta.placeholder='주의사항을 입력하세요 (예: 집중력 부족, 태도 등)';
   var addBtn=document.createElement('button');addBtn.className='cls-memo-add-btn';addBtn.textContent='추가';
   addBtn.onclick=function(){
     var text=ta.value.trim();if(!text){toast('내용을 입력해주세요');return;}
     if(!DB.classMemos)DB.classMemos=[];
     DB.classMemos.push({id:uid++,dk:gdk,time:gtime,ci:gci,student:stuSel.value||'',text:text,cat:state.cat,subject:gsubject||'',ts:nowHM(),date:td});
     save();ta.value='';renderDashMemoList(listId,gdk,gtime,gci,dayWide,td,gsubject);renderWarnListOnly();
-    toast((state.cat==='warn'?'⚠️ 주의사항':'👍 칭찬할점')+' 추가 완료');
+    toast((state.cat==='warn'?'⚠️ 주의사항':state.cat==='praise'?'👍 칭찬할점':'📝 참고사항')+' 추가 완료');
   };
   inputRow.appendChild(stuSel);inputRow.appendChild(ta);inputRow.appendChild(addBtn);
   memoSec.appendChild(inputRow);body.appendChild(memoSec);
@@ -6427,6 +6488,11 @@ function openProgModal2(){
 
 function refreshStudyPage(){selStudySubj(curStudySubj,document.getElementById('sbtn-'+curStudySubj));}
 
+function memoCatInfo(cat){
+  if(cat==='praise')return{itemClass:'memo-item-praise',tagClass:'memo-cat-tag-praise',label:'👍 칭찬'};
+  if(cat==='note')return{itemClass:'memo-item-note',tagClass:'memo-cat-tag-note',label:'📝 참고사항'};
+  return{itemClass:'memo-item-warn',tagClass:'memo-cat-tag-warn',label:'⚠️ 주의'};
+}
 function renderDashMemoList(listId,dk,time,ci,dayWide,td,subjectStr){
   var list=document.getElementById(listId);if(!list)return;
   if(!DB.classMemos)DB.classMemos=[];
@@ -6441,12 +6507,13 @@ function renderDashMemoList(listId,dk,time,ci,dayWide,td,subjectStr){
   list.innerHTML='';
   if(!memos.length){list.innerHTML='<div style="font-size:12px;color:var(--t3);padding:3px 0">아직 기록 없음</div>';return;}
   memos.forEach(function(m){
-    var item=document.createElement('div');item.className='cls-memo-item '+(m.cat==='warn'?'memo-item-warn':'memo-item-praise');
+    var ci2=memoCatInfo(m.cat);
+    var item=document.createElement('div');item.className='cls-memo-item '+ci2.itemClass;
     var av=document.createElement('div');av.className='cls-memo-avatar';av.style.background=m.student?avatarColor(m.student):'var(--t2)';av.textContent=m.student?m.student[0]:'전';
     var cont=document.createElement('div');cont.className='cls-memo-content';
     var topRow=document.createElement('div');topRow.style.cssText='display:flex;align-items:center;gap:5px;margin-bottom:2px';
     var nm=document.createElement('span');nm.className='cls-memo-name';nm.textContent=m.student||'전체';
-    var tag=document.createElement('span');tag.className='memo-cat-tag '+(m.cat==='warn'?'memo-cat-tag-warn':'memo-cat-tag-praise');tag.textContent=m.cat==='warn'?'⚠️ 주의':'👍 칭찬';
+    var tag=document.createElement('span');tag.className='memo-cat-tag '+ci2.tagClass;tag.textContent=ci2.label;
     topRow.appendChild(nm);topRow.appendChild(tag);
     var txt=document.createElement('div');txt.className='cls-memo-text';txt.textContent=m.text;
     txt.style.cursor='pointer';txt.title='클릭해서 수정';
@@ -6484,12 +6551,13 @@ function renderModalMemoList(dk,time,ci){
   list.innerHTML='';
   if(!memos.length){list.innerHTML='<div style="font-size:12px;color:var(--t3);padding:4px 0">아직 기록 없음</div>';return;}
   memos.forEach(function(m){
-    var item=document.createElement('div');item.className='cls-memo-item '+(m.cat==='warn'?'memo-item-warn':'memo-item-praise');
+    var ci2=memoCatInfo(m.cat);
+    var item=document.createElement('div');item.className='cls-memo-item '+ci2.itemClass;
     var av=document.createElement('div');av.className='cls-memo-avatar';av.style.background=m.student?avatarColor(m.student):'var(--t2)';av.textContent=m.student?m.student[0]:'전';
     var cont=document.createElement('div');cont.className='cls-memo-content';
     var topRow=document.createElement('div');topRow.style.cssText='display:flex;align-items:center;gap:5px;margin-bottom:2px';
     var nm=document.createElement('span');nm.className='cls-memo-name';nm.textContent=m.student||'전체';
-    var tag=document.createElement('span');tag.className='memo-cat-tag '+(m.cat==='warn'?'memo-cat-tag-warn':'memo-cat-tag-praise');tag.textContent=m.cat==='warn'?'⚠️ 주의':'👍 칭찬';
+    var tag=document.createElement('span');tag.className='memo-cat-tag '+ci2.tagClass;tag.textContent=ci2.label;
     topRow.appendChild(nm);topRow.appendChild(tag);
     var txt=document.createElement('div');txt.className='cls-memo-text';txt.textContent=m.text;
     txt.style.cursor='pointer';txt.title='클릭해서 수정';
@@ -6703,6 +6771,8 @@ function renderSubjView(){
     var col=cols2[ci%4]||['var(--s2)','var(--t1)'];
     var parts=sg.subject.split(' ');var subName=parts[0];var teacher=parts.slice(1).join(' ');
     var stuArr=[...sg.students];
+    var subjMakeupsForList=(DB.makeups||[]).filter(function(m){return m&&m.makeupDate===tdDash&&m.subject===sg.subject;});
+    subjMakeupsForList.forEach(function(m){if(m.student&&stuArr.indexOf(m.student)<0)stuArr.push(m.student);});
     var tab=document.createElement('div');tab.className='subj-tab-item'+(ci===activeCi?' on':'');tab.id='stab-'+ci;
     var bEl=document.createElement('span');bEl.style.cssText='background:'+col[0]+';color:'+col[1]+';font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px';bEl.textContent=subName;
     tab.appendChild(bEl);tab.appendChild(document.createTextNode(' '+teacher));
@@ -6751,7 +6821,7 @@ function renderSubjView(){
       mkTitle.style.cssText='font-size:11px;font-weight:700;color:var(--amber);margin-bottom:4px';
       mkTitle.textContent='🔁 보강 학생';
       mkWrap.appendChild(mkTitle);
-      subjMakeups.forEach(function(m){mkWrap.appendChild(buildMakeupRow(m));});
+      subjMakeups.forEach(function(m){mkWrap.appendChild(buildMakeupRow(m,false));});
       panel.appendChild(mkWrap);
     }
     // buildSubjTodayFeed 제거됨 — 아래 학습 기록 섹션이 하루 전체를 보여주도록 바뀌어 중복이라 삭제함
@@ -6797,7 +6867,7 @@ function renderSubjView(){
     var mkRow2=document.createElement('div');mkRow2.style.cssText='display:flex;gap:5px;flex-wrap:wrap;align-items:center';
     var mkStu2=document.createElement('select');mkStu2.style.cssText='flex:1;min-width:90px;padding:6px 8px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:#fff';
     mkStu2.innerHTML='<option value="">학생 선택</option>'+stuArr.map(function(s){return '<option>'+s+'</option>';}).join('');
-    var mkDateLbl2=document.createElement('span');mkDateLbl2.textContent='보강일';mkDateLbl2.style.cssText='font-size:11px;color:var(--t3);flex-shrink:0';
+    var mkDateLbl2=document.createElement('span');mkDateLbl2.textContent='보강일(선택)';mkDateLbl2.style.cssText='font-size:11px;color:var(--t3);flex-shrink:0';
     var mkDate2=document.createElement('input');mkDate2.type='date';
     mkDate2.style.cssText='padding:6px 8px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:#fff';
     var mkTime2=document.createElement('input');mkTime2.type='time';
@@ -6808,10 +6878,10 @@ function renderSubjView(){
       return function(){
       var s=mkStu2.value;var makeupDate=mkDate2.value;var makeupTime=mkTime2.value;
       if(!s){toast('학생을 선택해주세요');return;}
-      if(!makeupDate){toast('보강일을 선택해주세요');return;}
       var detail=formatMakeupDetail(absentDate,'',makeupDate,makeupTime);
       DB.makeups.push({id:uid++,student:s,detail:detail,subject:subj,absentDate:absentDate,absentTime:'',makeupDate:makeupDate,makeupTime:makeupTime,date:todayKo()});
-      save();mkDate2.value='';mkTime2.value='';mkStu2.value='';renderDashMakeup();toast(s+' 보강 등록 완료');
+      save();mkDate2.value='';mkTime2.value='';mkStu2.value='';renderDashMakeup();
+      toast(makeupDate?(s+' 보강 등록 완료'):(s+' 보강 등록 완료 (날짜 미정 — 사이드바에서 나중에 지정해주세요)'));
     };})(sg.subject,td);
     mkRow2.appendChild(mkStu2);mkRow2.appendChild(mkDateLbl2);mkRow2.appendChild(mkDate2);mkRow2.appendChild(mkTime2);mkRow2.appendChild(mkBtn2);
     mkSec.appendChild(mkRow2);panel.appendChild(mkSec);
@@ -7132,6 +7202,67 @@ function buildParentReportText(name,summaryOverride){
   lines.push('— 제이엠 수학영어&리드인학원');
   return lines.join('\n');
 }
+function loadHtml2Canvas(cb){
+  if(typeof html2canvas!=='undefined'){cb();return;}
+  var existing=document.getElementById('html2canvas-lib');
+  if(existing){existing.addEventListener('load',cb);return;}
+  var s=document.createElement('script');
+  s.id='html2canvas-lib';
+  s.src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+  s.onload=cb;
+  s.onerror=function(){toast('이미지 생성 라이브러리를 불러오지 못했어요. 인터넷 연결을 확인해주세요');};
+  document.head.appendChild(s);
+}
+function downloadReportImage(blob,name){
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url;a.download=name+'_학습리포트.png';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  setTimeout(function(){URL.revokeObjectURL(url);},2000);
+  toast('리포트 이미지가 다운로드되었습니다 — 채팅창에 파일로 첨부해서 보내주세요');
+  openAcademyKakaoChannel();
+}
+function shareReportAsImage(){
+  var name=document.getElementById('report-stu-sel')?.value;
+  if(!name){toast('학생을 먼저 선택해주세요');return;}
+  var content=document.getElementById('report-content');
+  if(!content){toast('리포트가 없습니다');return;}
+  toast('인쇄 화면 그대로 이미지를 만들고 있어요...');
+  loadHtml2Canvas(function(){
+    var btns=content.querySelectorAll('button');
+    var origDisplays=[];
+    btns.forEach(function(b){origDisplays.push(b.style.display);b.style.display='none';});
+    var restore=function(){btns.forEach(function(b,i){b.style.display=origDisplays[i];});};
+    html2canvas(content,{backgroundColor:'#ffffff',scale:2,useCORS:true}).then(function(canvas){
+      restore();
+      canvas.toBlob(function(blob){
+        if(!blob){toast('이미지 생성에 실패했습니다');return;}
+        var fileName=name+'_학습리포트.png';
+        var isMobileDevice=/Android|iPhone|iPad|iPod|Mobi/i.test(navigator.userAgent||'');
+        if(isMobileDevice&&navigator.share&&navigator.canShare){
+          var file=new File([blob],fileName,{type:'image/png'});
+          if(navigator.canShare({files:[file]})){
+            navigator.share({files:[file],title:name+' 학습 리포트'}).catch(function(){});
+            return;
+          }
+        }
+        if(navigator.clipboard&&window.ClipboardItem){
+          navigator.clipboard.write([new ClipboardItem({'image/png':blob})]).then(function(){
+            toast('리포트 이미지가 복사되었습니다 — 열리는 채팅창에 붙여넣기(Ctrl+V) 하세요');
+            openAcademyKakaoChannel();
+          }).catch(function(){downloadReportImage(blob,name);});
+        }else{
+          downloadReportImage(blob,name);
+        }
+      },'image/png');
+    }).catch(function(err){
+      restore();
+      console.warn('리포트 이미지 생성 실패',err);
+      toast('이미지 생성에 실패했어요. 텍스트로 대신 전송할게요');
+      shareReport();
+    });
+  });
+}
 function shareReport(){
   var name=document.getElementById('report-stu-sel')?.value;
   if(!name){toast('학생을 먼저 선택해주세요');return;}
@@ -7149,8 +7280,8 @@ function shareReport(){
     return;
   }
   var afterCopy=function(){
-    toast('리포트가 복사되었습니다 — 카카오톡 채널 관리자센터에서 학부모님과의 대화창에 붙여넣기(Ctrl+V) 하세요');
-    window.open('https://center-pf.kakao.com/','_blank');
+    toast('리포트가 복사되었습니다 — 열리는 채팅 목록에서 '+name+' 학부모님과의 대화창에 붙여넣기(Ctrl+V) 하세요');
+    openAcademyKakaoChannel();
   };
   if(navigator.clipboard&&navigator.clipboard.writeText){
     navigator.clipboard.writeText(text).then(afterCopy).catch(function(){fallbackCopy(text);});
