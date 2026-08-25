@@ -277,6 +277,9 @@ button,select,input,textarea{font-family:inherit}
 .sched-table-all td:first-child{min-width:44px}
 .sched-table-all thead tr:first-child th{position:sticky;top:0;z-index:2}
 .sched-table-all thead tr:nth-child(2) th{position:sticky;top:24px;z-index:2;background:var(--s2)}
+.sched-view-bar{display:flex;gap:6px;padding:0 0 10px;flex-wrap:wrap}
+.sched-view-btn{padding:7px 14px;font-size:12px;font-weight:600;border-radius:20px;cursor:pointer;border:1px solid var(--border);color:var(--t2);background:var(--surface);transition:all .15s}
+.sched-view-btn.on{background:var(--navy);color:#fff;border-color:var(--navy)}
 
 /* 리포트 */
 .report-card{background:var(--navy);color:#fff;border-radius:var(--r);padding:20px;margin-bottom:14px}
@@ -794,16 +797,24 @@ button,select,input,textarea{font-family:inherit}
       <button class="week-nav-btn" onclick="changeWeek(1)">›</button>
     </div>
     <div class="sched-day-bar" id="sched-day-bar"></div>
+    <div class="sched-view-bar" id="sched-view-bar">
+      <button class="sched-view-btn on" id="sched-view-day" onclick="setSchedView('day')">📅 요일별보기</button>
+      <button class="sched-view-btn" id="sched-view-all" onclick="setSchedView('all')">🗓 전체시간표</button>
+      <button class="sched-view-btn" id="sched-view-subj" onclick="setSchedView('subj')">🎯 과목별시간표</button>
+    </div>
     <div class="card" style="margin-top:12px">
-      <div class="card-head">
+      <div class="card-head" style="flex-wrap:wrap;row-gap:8px">
         <span class="card-title" id="sched-card-title">월요일 수업표</span>
-        <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--t2);cursor:pointer;margin-right:8px">
-          <input type="checkbox" id="merge-toggle" checked onchange="toggleMergeConsecutive(this.checked)" style="cursor:pointer">
-          연강 자동 합치기
-        </label>
-        <button class="btn btn-sm" id="sched-viewall-btn" style="background:var(--s2);color:var(--t2)" onclick="toggleSchedViewAll()">📋 전체보기</button>
-        <button class="btn btn-gold btn-sm" onclick="openSchedMkModal()">🔁 보강 등록</button>
-        <button class="btn btn-blue btn-sm" onclick="openAddClsModal()">+ 반 추가</button>
+        <select class="form-input" id="sched-subj-sel" style="display:none;width:auto;min-width:130px;flex:none;padding:6px 8px;font-size:12px" onchange="renderSchedTable()"></select>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-left:auto">
+          <label id="sched-merge-label" style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--t2);cursor:pointer">
+            <input type="checkbox" id="merge-toggle" checked onchange="toggleMergeConsecutive(this.checked)" style="cursor:pointer">
+            연강 자동 합치기
+          </label>
+          <button class="btn btn-sm" style="background:var(--s2);color:var(--t2)" onclick="printSchedule()">🖨 인쇄</button>
+          <button class="btn btn-gold btn-sm" onclick="openSchedMkModal()">🔁 보강 등록</button>
+          <button class="btn btn-blue btn-sm" id="sched-add-btn" onclick="openAddClsModal()">+ 반 추가</button>
+        </div>
       </div>
       <div class="sched-grid2" id="sched-grid2"><table class="sched-table" id="sched-table"></table></div>
     </div>
@@ -1781,7 +1792,7 @@ let DB = {
   staffAccounts: [] // {id, loginId, pw, name, role} - 강사·직원 로그인 계정 (설정에서 관리)
 };
 
-let curPage='dash', curSchedDay=0, curSettingsDay=0, curStuId=null, schedShowAll=false;
+let curPage='dash', curSchedDay=0, curSettingsDay=0, curStuId=null, schedViewMode='day';
 let editStudentId=null, attModalData=null, clsModalData=null;
 let stuGradeFilter='';
 let stuSubjFilter='';
@@ -4609,24 +4620,38 @@ function globalSearch(q){
 // ════════════════════════════════════════
 //  수업표
 // ════════════════════════════════════════
-function selSchedDay(i,btn){
-  curSchedDay=i;
-  schedShowAll=false;
-  var vb=document.getElementById('sched-viewall-btn');
-  if(vb){vb.textContent='📋 전체보기';vb.style.background='var(--s2)';vb.style.color='var(--t2)';}
-  document.querySelectorAll('#sched-day-bar .day-tab2').forEach((b,j)=>b.classList.toggle('on',j===i));
-  document.getElementById('sched-card-title').textContent=DKKO[i]+' 수업표';
+function applySchedViewUI(mode){
+  document.querySelectorAll('.sched-view-btn').forEach(function(b){b.classList.remove('on');});
+  var activeBtn=document.getElementById('sched-view-'+mode);if(activeBtn)activeBtn.classList.add('on');
+  var dayBar=document.getElementById('sched-day-bar');if(dayBar)dayBar.style.display=(mode==='day')?'':'none';
+  var subjSel=document.getElementById('sched-subj-sel');if(subjSel)subjSel.style.display=(mode==='subj')?'':'none';
+  var mergeLabel=document.getElementById('sched-merge-label');if(mergeLabel)mergeLabel.style.display=(mode==='day')?'':'none';
+  var addBtn=document.getElementById('sched-add-btn');if(addBtn)addBtn.style.display=(mode==='day')?'':'none';
+}
+function setSchedView(mode){
+  schedViewMode=mode;
+  applySchedViewUI(mode);
+  if(mode==='subj')populateSchedSubjSel();
+  var titleEl=document.getElementById('sched-card-title');
+  if(titleEl){
+    if(mode==='day')titleEl.textContent=DKKO[curSchedDay]+' 수업표';
+    else if(mode==='all')titleEl.textContent='전체 수업표 (월~일)';
+    else titleEl.textContent='과목별 수업표';
+  }
   renderSchedTable();
 }
-function toggleSchedViewAll(){
-  schedShowAll=!schedShowAll;
-  var vb=document.getElementById('sched-viewall-btn');
-  if(vb){
-    if(schedShowAll){vb.textContent='📅 요일별 보기';vb.style.background='var(--navy)';vb.style.color='#fff';}
-    else{vb.textContent='📋 전체보기';vb.style.background='var(--s2)';vb.style.color='var(--t2)';}
-  }
-  document.getElementById('sched-card-title').textContent=schedShowAll?'전체 수업표 (월~일)':DKKO[curSchedDay]+' 수업표';
-  document.querySelectorAll('#sched-day-bar .day-tab2').forEach((b,j)=>b.classList.toggle('on',!schedShowAll&&j===curSchedDay));
+function populateSchedSubjSel(){
+  var sel=document.getElementById('sched-subj-sel');if(!sel)return;
+  var subjects=getAllSubjectTeachers();
+  var prevVal=sel.value;
+  sel.innerHTML=subjects.length?subjects.map(function(s){return '<option value="'+s+'">'+s+'</option>';}).join(''):'<option value="">등록된 과목 없음</option>';
+  if(subjects.indexOf(prevVal)>=0)sel.value=prevVal;
+}
+function selSchedDay(i,btn){
+  curSchedDay=i;
+  if(schedViewMode!=='day'){schedViewMode='day';applySchedViewUI('day');}
+  document.querySelectorAll('#sched-day-bar .day-tab2').forEach((b,j)=>b.classList.toggle('on',j===i));
+  document.getElementById('sched-card-title').textContent=DKKO[i]+' 수업표';
   renderSchedTable();
 }
 function arraysEqualAsSet(a,b){
@@ -4642,9 +4667,15 @@ function toggleMergeConsecutive(checked){
 }
 function renderSchedTable(){
   var wrap=document.getElementById('sched-grid2');
-  if(schedShowAll){
+  if(schedViewMode==='all'){
     wrap.innerHTML='';
     buildAllDaysUnifiedTable(wrap);
+    return;
+  }
+  if(schedViewMode==='subj'){
+    wrap.innerHTML='';
+    var sel=document.getElementById('sched-subj-sel');
+    buildSubjectTableInto(wrap,sel?sel.value:'');
     return;
   }
   wrap.innerHTML='<table class="sched-table" id="sched-table"></table>';
@@ -4727,6 +4758,74 @@ function buildAllDaysUnifiedTable(container){
       });
     });
     tbody.appendChild(tr);
+  });
+  tbl.appendChild(tbody);
+  container.appendChild(tbl);
+}
+function buildSubjectTableInto(container,subjName){
+  if(!subjName){
+    container.innerHTML='<div style="padding:24px;text-align:center;color:var(--t3);font-size:13px">과목·선생님을 선택해주세요</div>';
+    return;
+  }
+  var dayColIdx={};
+  DKEYS.forEach(function(dk,di){
+    var day=DB.schedule[dk];if(!day)return;
+    var ci=(day.cols||[]).indexOf(subjName);
+    if(ci>=0)dayColIdx[di]=ci;
+  });
+  var activeDays=Object.keys(dayColIdx).map(Number).sort(function(a,b){return a-b;});
+  if(!activeDays.length){
+    container.innerHTML='<div style="padding:24px;text-align:center;color:var(--t3);font-size:13px">등록된 수업이 없습니다</div>';
+    return;
+  }
+  var timeSet={};
+  activeDays.forEach(function(di){
+    var day=DB.schedule[DKEYS[di]];
+    (day.rows||[]).forEach(function(r){if(r&&r.t)timeSet[r.t]=true;});
+  });
+  var times=Object.keys(timeSet).sort(function(a,b){return parseSchedTime(a)-parseSchedTime(b);});
+
+  var tbl=document.createElement('table');tbl.className='sched-table sched-table-all';
+  var thead=document.createElement('thead');
+  var tr=document.createElement('tr');
+  var th0=document.createElement('th');th0.textContent='시간';tr.appendChild(th0);
+  activeDays.forEach(function(di){
+    var th=document.createElement('th');th.textContent=DKKO[di];
+    th.style.cssText='background:var(--navy);color:#fff;font-size:13px;font-weight:700'+(di===5?';background:var(--accent)':di===6?';background:var(--red)':'');
+    tr.appendChild(th);
+  });
+  thead.appendChild(tr);tbl.appendChild(thead);
+
+  var tbody=document.createElement('tbody');
+  times.forEach(function(t){
+    var trb=document.createElement('tr');
+    var tdT=document.createElement('td');tdT.textContent=t;
+    tdT.style.cssText='font-weight:700;text-align:center;background:var(--s2);vertical-align:middle';
+    trb.appendChild(tdT);
+    activeDays.forEach(function(di){
+      var day=DB.schedule[DKEYS[di]];
+      var ci=dayColIdx[di];
+      var rowIdx=(day.rows||[]).findIndex(function(r){return r&&r.t===t;});
+      var stu=rowIdx>=0?(day.rows[rowIdx].cells[ci]||[]):[];
+      var td=document.createElement('td');td.style.verticalAlign='top';
+      if(stu&&stu.length){
+        td.className='has-s';td.style.cursor='pointer';
+        var wrap=document.createElement('div');wrap.style.cssText='display:flex;flex-direction:column;align-items:flex-start;gap:1px';
+        stu.forEach(function(n){var sp=document.createElement('div');sp.className='chip2 '+CCLS[ci%CCLS.length];var prof=getStuProfile(n);sp.textContent=n+(prof&&isBirthdayToday(prof.birth)?' 🎂':'');wrap.appendChild(sp);});
+        td.appendChild(wrap);
+        var editBtn2=document.createElement('button');
+        editBtn2.style.cssText='font-size:9px;padding:1px 5px;border-radius:4px;border:1px solid var(--border);background:var(--s2);color:var(--t2);cursor:pointer;width:100%;margin-top:2px;pointer-events:auto';
+        editBtn2.textContent='✏️ 추가·삭제';
+        editBtn2.onclick=(function(di2,ri,ci2){return function(e){e.stopPropagation();openClsModal(di2,ri,ci2,true);};})(di,rowIdx,ci);
+        td.appendChild(editBtn2);
+        td.onclick=(function(dk,ri,ci2,colName,stuArr,tt){return function(){openAttModal(dk,ri,ci2,colName,stuArr,tt);};})(DKEYS[di],rowIdx,ci,subjName,stu,t);
+      }else{
+        td.style.cssText='color:var(--t3);font-size:10px;text-align:center;padding:6px 2px;vertical-align:middle';
+        td.textContent='—';
+      }
+      trb.appendChild(td);
+    });
+    tbody.appendChild(trb);
   });
   tbl.appendChild(tbody);
   container.appendChild(tbl);
@@ -7174,6 +7273,39 @@ function saveFeedback(name,prefix){
   DB.feedback[key].weekly=document.getElementById(pfx+'-weekly')?.value.trim()||'';
   DB.feedback[key].monthly=document.getElementById(pfx+'-monthly')?.value.trim()||'';
   save();toast('피드백 저장 완료');
+}
+
+// ── 수업표 인쇄 ──
+function printSchedule(){
+  var wrap=document.getElementById('sched-grid2');
+  if(!wrap||!wrap.innerHTML.trim()){toast('인쇄할 수업표가 없습니다');return;}
+  var title=document.getElementById('sched-card-title')?document.getElementById('sched-card-title').textContent:'수업표';
+  if(schedViewMode==='subj'){
+    var sel=document.getElementById('sched-subj-sel');
+    if(sel&&sel.value)title=sel.value+' 시간표';
+  }
+  var isWide=(schedViewMode==='all'||schedViewMode==='subj');
+  var styles='';
+  document.querySelectorAll('style').forEach(function(s){styles+=s.outerHTML;});
+  var w=window.open('','_blank','width=1000,height=800');
+  if(!w){toast('팝업이 차단되었습니다. 팝업을 허용해주세요');return;}
+  var dateLine=typeof todayKo==='function'?todayKo():'';
+  w.document.write('<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>'+title+'</title>'+styles+
+    '<style>*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}'+
+    'body{background:#fff!important;height:auto!important;overflow:auto!important;padding:20px}'+
+    '.sched-grid2{overflow:visible!important}'+
+    '.sched-table{min-width:0!important;width:100%!important}'+
+    'button{display:none!important}'+
+    '.print-title{font-size:18px;font-weight:800;margin-bottom:4px;color:#111}'+
+    '.print-sub{font-size:12px;color:#666;margin-bottom:14px}'+
+    (isWide?'@page{size:landscape;margin:12mm}':'@page{margin:14mm}')+
+    '@media print{body{padding:0}}</style></head><body>'+
+    '<div class="print-title">'+title+'</div>'+
+    '<div class="print-sub">제이엠 수학영어&리드인학원 · '+dateLine+'</div>'+
+    wrap.innerHTML+'</body></html>');
+  w.document.close();
+  w.onload=function(){setTimeout(function(){w.print();},300);};
+  setTimeout(function(){try{w.print();}catch(e){}},600);
 }
 
 // ── 리포트 인쇄 ──
