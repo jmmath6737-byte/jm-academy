@@ -272,6 +272,7 @@ button,select,input,textarea{font-family:inherit}
 .chip2{display:inline-flex;align-items:center;gap:2px;font-size:10px;padding:2px 5px;border-radius:3px;font-weight:500;margin:1px;white-space:nowrap}
 .chip2.m1{background:var(--m1);color:var(--m1t)}.chip2.m2{background:var(--m2);color:var(--m2t)}
 .chip2.en{background:var(--en);color:var(--ent)}.chip2.ko{background:var(--ko);color:var(--kot)}
+.chip2.on-leave{background:var(--s2)!important;color:var(--t3)!important;border:1px dashed var(--border2);text-decoration:line-through;text-decoration-color:var(--t3)}
 .sched-table-all{min-width:900px}
 .sched-table-all th,.sched-table-all td{padding:4px 5px;min-width:64px}
 .sched-table-all td:first-child{min-width:44px}
@@ -377,6 +378,9 @@ button,select,input,textarea{font-family:inherit}
 .ab.x.on{background:var(--red);border-color:var(--red);color:#fff}
 .ab.lt.on{background:var(--amber);border-color:var(--amber);color:#fff}
 .ab.mk.on{background:var(--purple,#7c3aed);border-color:var(--purple,#7c3aed);color:#fff}
+.lvb{padding:4px 8px;font-size:11px;font-weight:600;border-radius:6px;border:1.5px solid var(--border);background:var(--surface);color:var(--t2);cursor:pointer;transition:all .12s;white-space:nowrap}
+.lvb:active{transform:scale(.95)}
+.lvb.on{background:var(--t2);border-color:var(--t2);color:#fff}
 
 /* 구분선 */
 .hw-divider{width:1px;height:20px;background:var(--border);flex-shrink:0;margin:0 2px}
@@ -1434,6 +1438,12 @@ button,select,input,textarea{font-family:inherit}
       </div>
       <div class="form-group" id="ms-withdraw-date-group" style="display:none">
         <label class="form-label">퇴원일</label><input class="form-input" id="ms-withdraw-date" type="date">
+      </div>
+      <div class="form-group">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--t2)">
+          <input type="checkbox" id="ms-on-leave" style="width:17px;height:17px;cursor:pointer;accent-color:var(--t2)">
+          ⏸ 임시 휴원 (시간표에서 이름·자리는 삭제하지 않고 회색으로만 표시)
+        </label>
       </div>
       <div class="form-group"><label class="form-label">메모</label><textarea class="form-input" id="ms-memo" rows="2" placeholder="특이사항, 상담 내용 등"></textarea></div>
     </div>
@@ -3194,6 +3204,23 @@ function getAllStu(){
   return [...s].sort();
 }
 function getStuProfile(name){return DB.students.find(s=>s.name===name)||null;}
+// 임시 휴원 토글 — 시간표에서 이름/자리는 그대로 두고 색만 바꿔 표시(삭제 아님). 나중에 복귀하면 다시 눌러서 재원으로 전환.
+function isStuOnLeave(name){var p=getStuProfile(name);return !!(p&&p.onLeave);}
+function toggleStudentLeave(name){
+  if(!DB.students)DB.students=[];
+  var prof=getStuProfile(name);
+  if(prof){prof.onLeave=!prof.onLeave;}
+  else{prof={id:uid++,name:name,onLeave:true};DB.students.push(prof);}
+  save();
+  toast(name+(prof.onLeave?' 휴원 처리되었습니다 (시간표에 회색으로 표시됩니다)':' 재원으로 복귀되었습니다'));
+  var row=document.getElementById('am-'+name);
+  if(row){var b=row.querySelector('.lvb');if(b){b.classList.toggle('on',!!prof.onLeave);b.textContent=prof.onLeave?'▶ 재원 복귀':'⏸ 휴원';}}
+  var msLeave=document.getElementById('ms-on-leave');
+  if(msLeave && document.getElementById('ms-name') && document.getElementById('ms-name').value.trim()===name)msLeave.checked=!!prof.onLeave;
+  try{if(document.getElementById('sched-grid2') && typeof renderSchedTable==='function')renderSchedTable();}catch(e){}
+  try{if(document.getElementById('settings-cls-list') && typeof renderSettingsClsList==='function')renderSettingsClsList();}catch(e){}
+  try{if(curPage==='dash' && typeof renderDash==='function')renderDash();}catch(e){}
+}
 function avatarColor(name){
   const colors=['#1e2d4a','#2d6be4','#18a06b','#d97706','#7c3aed','#e03a3a','#0891b2'];
   let h=0;for(let c of name)h=(h*31+c.charCodeAt(0))%colors.length;
@@ -3489,9 +3516,10 @@ function renderTodayAttList(students, day){
       av.style.cssText='display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:'+avatarColor(name)+';color:#fff;font-size:11px;font-weight:700;flex-shrink:0';
       av.textContent=name[0];
 
+      var onLeaveNow=isStuOnLeave(name);
       var nm=document.createElement('span');
-      nm.style.cssText='font-size:13px;font-weight:600;min-width:46px;flex-shrink:0;color:var(--t1)';
-      nm.textContent=name;
+      nm.style.cssText='font-size:13px;font-weight:600;min-width:46px;flex-shrink:0'+(onLeaveNow?';color:var(--t3);text-decoration:line-through':';color:var(--t1)');
+      nm.textContent=(onLeaveNow?'⏸ ':'')+name;
 
       rowDiv.appendChild(av);
       rowDiv.appendChild(nm);
@@ -3550,6 +3578,16 @@ function renderTodayAttList(students, day){
           rowDiv.appendChild(btn);
         });
       })(name, hk, rowId, hv);
+
+      var sepLv=document.createElement('span');
+      sepLv.style.cssText='display:inline-block;width:1px;height:14px;background:var(--border);margin:0 2px;flex-shrink:0;align-self:center';
+      rowDiv.appendChild(sepLv);
+      var lvBtn=document.createElement('button');
+      lvBtn.className='lvb'+(onLeaveNow?' on':'');
+      lvBtn.textContent=onLeaveNow?'▶ 재원 복귀':'⏸ 휴원';
+      lvBtn.title='삭제하지 않고 시간표에 회색으로 표시 — 나중에 복귀하면 다시 눌러 재원으로 전환';
+      lvBtn.onclick=(function(n){return function(){toggleStudentLeave(n);};})(name);
+      rowDiv.appendChild(lvBtn);
 
       body.appendChild(rowDiv);
     });
@@ -4018,6 +4056,7 @@ function openStudentModal(id=null){
   renderMsTimeChips();
   document.getElementById('ms-status').value=(stu&&stu.status==='withdrawn')?'withdrawn':'active';
   document.getElementById('ms-withdraw-date').value=stu?stu.withdrawDate||'':'';
+  document.getElementById('ms-on-leave').checked=!!(stu&&stu.onLeave);
   toggleWithdrawDateField();
   var feeGroup=document.getElementById('ms-fee-group');
   var isDirector=currentUser && currentUser.role==='director';
@@ -4192,6 +4231,7 @@ function saveStudent(){
     status:document.getElementById('ms-status').value,
     withdrawDate:document.getElementById('ms-status').value==='withdrawn'?document.getElementById('ms-withdraw-date').value:'',
     channelAdded:document.getElementById('ms-channel-added').checked,
+    onLeave:document.getElementById('ms-on-leave').checked,
     updatedAt:Date.now()
   };
   if(editStudentId){
@@ -4202,6 +4242,8 @@ function saveStudent(){
   }
   save();closeModal('modal-student');fillAllSelects();
   renderStudentList(document.getElementById('stu-search').value);
+  try{if(document.getElementById('sched-grid2') && typeof renderSchedTable==='function')renderSchedTable();}catch(e){}
+  try{if(document.getElementById('settings-cls-list') && typeof renderSettingsClsList==='function')renderSettingsClsList();}catch(e){}
   toast(editStudentId?'수정 완료':'원생 등록 완료');
   if(!editStudentId)showStudentProfile(stu.name);
 }
@@ -4250,9 +4292,10 @@ function renderStudentList(q=''){
     var subLine=prof?(((prof.school||'')+' '+gradeLabel).trim()||'미등록'):'미등록';
     var chBadge=prof?('<span onclick="event.stopPropagation();toggleChannelAdded(\''+name.replace(/'/g,"\\'")+'\')" title="'+(prof.channelAdded?'카카오톡 채널 추가 완료 — 클릭하면 해제':'채널 미추가 — 클릭하면 완료로 표시')+'" style="cursor:pointer;margin-left:6px">'+(prof.channelAdded?'💬✅':'💬✕')+'</span>'):'';
     var smsBtn=(prof&&(prof.phone||prof.phone2))?('<button class="btn btn-gray btn-xs" style="margin-left:6px;flex-shrink:0" title="학부모님께 문자 보내기" onclick="event.stopPropagation();smsParent(\''+name.replace(/'/g,"\\'")+'\')">📱 문자</button>'):'';
+    var leaveBadge=(prof&&prof.onLeave)?'<span style="margin-left:6px;font-size:10px;padding:1px 6px;border-radius:8px;background:var(--s2);color:var(--t3);border:1px dashed var(--border2)">⏸ 휴원</span>':'';
     item.innerHTML=`<div class="stu-avatar" style="background:${avatarColor(name)};width:34px;height:34px;font-size:13px">${name[0]}</div>
     <div class="info">
-      <div class="name">${name}</div>
+      <div class="name">${name}${leaveBadge}</div>
       <div class="sub">${subLine}${chBadge}</div>
     </div>
     ${smsBtn}`;
@@ -4365,7 +4408,7 @@ function showStudentProfile(name){
   // 프로필 헤더
   var hdr=document.createElement('div');hdr.className='profile-header';hdr.style.marginBottom='14px';
   hdr.innerHTML='<div class="profile-avatar">'+name[0]+'</div>'+
-    '<div><div class="profile-name">'+name+'</div>'+
+    '<div><div class="profile-name">'+name+(prof&&prof.onLeave?' <span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;background:var(--s2);color:var(--t3);border:1px dashed var(--border2);vertical-align:middle">⏸ 휴원</span>':'')+'</div>'+
     '<div class="profile-sub">'+(prof?((prof.school||'')+' '+gradeToLabel(prof.grade)).trim():'미등록')+(prof&&prof.channelAdded?' · 💬✅':'')+'</div>'+
     '<div class="profile-sub" style="margin-top:3px">'+schedInfo.map(function(s){return s.subj+' '+s.time;}).join(' / ')+'</div></div>'+
     '<div class="profile-stats">'+
@@ -4382,7 +4425,7 @@ function showStudentProfile(name){
     var infoGrid=document.createElement('div');infoGrid.className='grid2';infoGrid.style.marginBottom='14px';
     var c1=document.createElement('div');c1.className='card';
     c1.innerHTML='<div class="card-head"><span class="card-title">기본 정보</span></div><div class="card-body">';
-    var infoRows=[['생년월일',prof.birth],['학생 연락처',prof.stuPhone],['학부모 성함',prof.parentName],['학부모 연락처1',prof.phone],['학부모 연락처2',prof.phone2],['집 주소',prof.address],['등원 장소',prof.pickupIn||prof.pickup],['하원 장소',prof.pickupOut],['입회일',prof.join],['수업 시간',prof.time],['월 수업료',prof.fee],['수강 과목',prof.subject],['재원 상태',prof.status==='withdrawn'?('퇴원 ('+(prof.withdrawDate||'-')+')'):'재원'],['카카오톡 채널',prof.channelAdded?'💬✅ 추가 완료':'💬✕ 미추가']];
+    var infoRows=[['생년월일',prof.birth],['학생 연락처',prof.stuPhone],['학부모 성함',prof.parentName],['학부모 연락처1',prof.phone],['학부모 연락처2',prof.phone2],['집 주소',prof.address],['등원 장소',prof.pickupIn||prof.pickup],['하원 장소',prof.pickupOut],['입회일',prof.join],['수업 시간',prof.time],['월 수업료',prof.fee],['수강 과목',prof.subject],['재원 상태',prof.status==='withdrawn'?('퇴원 ('+(prof.withdrawDate||'-')+')'):(prof.onLeave?'⏸ 휴원 중':'재원')],['카카오톡 채널',prof.channelAdded?'💬✅ 추가 완료':'💬✕ 미추가']];
     if(!(currentUser && currentUser.role==='director')) infoRows=infoRows.filter(function(r){return r[0]!=='월 수업료';});
     infoRows.forEach(function(row){
       if(!row[1])return;
@@ -4690,7 +4733,7 @@ function buildAllDaysUnifiedTable(container){
         if(stu&&stu.length){
           td.className='has-s';td.style.cursor='pointer';
           var wrap=document.createElement('div');wrap.style.cssText='display:flex;flex-direction:column;align-items:flex-start;gap:1px';
-          stu.forEach(function(n){var sp=document.createElement('div');sp.className='chip2 '+CCLS[ci%CCLS.length];var prof=getStuProfile(n);sp.textContent=n+(prof&&isBirthdayToday(prof.birth)?' 🎂':'');wrap.appendChild(sp);});
+          stu.forEach(function(n){var sp=document.createElement('div');var prof=getStuProfile(n);sp.className='chip2 '+CCLS[ci%CCLS.length]+(prof&&prof.onLeave?' on-leave':'');sp.textContent=(prof&&prof.onLeave?'⏸ ':'')+n+(prof&&isBirthdayToday(prof.birth)?' 🎂':'');wrap.appendChild(sp);});
           td.appendChild(wrap);
           var editBtn2=document.createElement('button');
           editBtn2.style.cssText='font-size:9px;padding:1px 5px;border-radius:4px;border:1px solid var(--border);background:var(--s2);color:var(--t2);cursor:pointer;width:100%;margin-top:2px;pointer-events:auto';
@@ -4760,7 +4803,7 @@ function buildSubjectTableInto(container,subjName){
       if(stu&&stu.length){
         td.className='has-s';td.style.cursor='pointer';
         var wrap=document.createElement('div');wrap.style.cssText='display:flex;flex-direction:column;align-items:flex-start;gap:1px';
-        stu.forEach(function(n){var sp=document.createElement('div');sp.className='chip2 '+CCLS[ci%CCLS.length];var prof=getStuProfile(n);sp.textContent=n+(prof&&isBirthdayToday(prof.birth)?' 🎂':'');wrap.appendChild(sp);});
+        stu.forEach(function(n){var sp=document.createElement('div');var prof=getStuProfile(n);sp.className='chip2 '+CCLS[ci%CCLS.length]+(prof&&prof.onLeave?' on-leave':'');sp.textContent=(prof&&prof.onLeave?'⏸ ':'')+n+(prof&&isBirthdayToday(prof.birth)?' 🎂':'');wrap.appendChild(sp);});
         td.appendChild(wrap);
         var editBtn2=document.createElement('button');
         editBtn2.style.cssText='font-size:9px;padding:1px 5px;border-radius:4px;border:1px solid var(--border);background:var(--s2);color:var(--t2);cursor:pointer;width:100%;margin-top:2px;pointer-events:auto';
@@ -4829,7 +4872,7 @@ function buildDayTableInto(tbl2,dayIdx){
           td.appendChild(badge);
         }
         var chipWrap =document.createElement('div');chipWrap.style.cssText='display:flex;flex-wrap:wrap;gap:2px;margin-bottom:3px;pointer-events:none';
-        stu.forEach(function(n){var sp =document.createElement('span');sp.className='chip2 '+CCLS[ci%CCLS.length];var prof=getStuProfile(n);sp.textContent=n+(prof&&isBirthdayToday(prof.birth)?' 🎂':'');chipWrap.appendChild(sp);});
+        stu.forEach(function(n){var sp =document.createElement('span');var prof=getStuProfile(n);sp.className='chip2 '+CCLS[ci%CCLS.length]+(prof&&prof.onLeave?' on-leave':'');sp.textContent=(prof&&prof.onLeave?'⏸ ':'')+n+(prof&&isBirthdayToday(prof.birth)?' 🎂':'');chipWrap.appendChild(sp);});
         var editBtn =document.createElement('button');
         editBtn.style.cssText='font-size:10px;padding:2px 6px;border-radius:4px;border:1px solid var(--border);background:var(--s2);color:var(--t2);cursor:pointer;width:100%;pointer-events:auto';
         editBtn.textContent='✏️ 추가·삭제';
@@ -4867,9 +4910,9 @@ function openAttModal(dk,ri,ci,subject,stu,time){
     var ak=name+'_'+td+'_'+ci,hk='hw_'+name+'_'+td+'_'+ci;
     var cur=DB.attendance[ak]||'',hw=DB.homework[hk]||'';
     var row=document.createElement('div');row.id='am-'+name;
-    row.style.cssText='display:flex;align-items:center;gap:6px;padding:8px 0;border-bottom:1px solid var(--border)';
+    row.style.cssText='display:flex;align-items:center;gap:6px;padding:8px 0;border-bottom:1px solid var(--border);flex-wrap:wrap';
     var av=document.createElement('div');av.style.cssText='width:28px;height:28px;border-radius:50%;background:'+avatarColor(name)+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0';av.textContent=name[0];
-    var nm=document.createElement('div');nm.style.cssText='font-size:13px;font-weight:500;flex:1;min-width:0';nm.textContent=name;
+    var nm=document.createElement('div');nm.style.cssText='font-size:13px;font-weight:500;flex:1;min-width:0'+(isStuOnLeave(name)?';color:var(--t3);text-decoration:line-through':'');nm.textContent=(isStuOnLeave(name)?'⏸ ':'')+name;
     var ag=document.createElement('div');ag.style.cssText='display:flex;gap:2px;flex-shrink:0';
     [{v:'o',l:'출석'},{v:'lt',l:'지각'},{v:'x',l:'결석'}].forEach(function(it){
       var b=document.createElement('button');b.className='ab '+it.v+(cur===it.v?' on':'');b.textContent=it.l;
@@ -4891,7 +4934,14 @@ function openAttModal(dk,ri,ci,subject,stu,time){
         if(curPage==='dash')renderDash();
       };})(name,hk,it.v);hg.appendChild(b);
     });
-    row.appendChild(av);row.appendChild(nm);row.appendChild(ag);row.appendChild(sep);row.appendChild(hg);grid.appendChild(row);
+    var sep2=document.createElement('div');sep2.style.cssText='width:1px;height:16px;background:var(--border);flex-shrink:0';
+    var lvBtn=document.createElement('button');
+    var onLeaveNow=isStuOnLeave(name);
+    lvBtn.className='lvb'+(onLeaveNow?' on':'');
+    lvBtn.textContent=onLeaveNow?'▶ 재원 복귀':'⏸ 휴원';
+    lvBtn.title='삭제하지 않고 시간표에 회색으로 표시 — 나중에 복귀하면 다시 눌러 재원으로 전환';
+    lvBtn.onclick=(function(n){return function(){toggleStudentLeave(n);};})(name);
+    row.appendChild(av);row.appendChild(nm);row.appendChild(ag);row.appendChild(sep);row.appendChild(hg);row.appendChild(sep2);row.appendChild(lvBtn);grid.appendChild(row);
   });
   s1.appendChild(grid);body.appendChild(s1);
   var s2=document.createElement('div');s2.style.cssText='margin-top:12px;padding-top:10px;border-top:1px solid var(--border)';
@@ -5890,7 +5940,7 @@ function renderSettingsClsList(){
         <button class="btn btn-gray btn-xs" onclick="openClsModal(${curSettingsDay},${ri},${ci},true)">편집</button>
         <button class="btn btn-gray btn-xs" style="margin-left:4px" onclick="delCls(${curSettingsDay},${ri},${ci})">삭제</button>
       </div>
-      <div style="display:flex;flex-wrap:wrap;gap:3px">${stu.map(n=>`<span class="chip2 ${CCLS[ci%CCLS.length]}">${n}</span>`).join('')}</div>`;
+      <div style="display:flex;flex-wrap:wrap;gap:3px">${stu.map(n=>{var prof=getStuProfile(n);return `<span class="chip2 ${CCLS[ci%CCLS.length]}${prof&&prof.onLeave?' on-leave':''}">${prof&&prof.onLeave?'⏸ ':''}${n}</span>`;}).join('')}</div>`;
       el.appendChild(div);
     });
   });
