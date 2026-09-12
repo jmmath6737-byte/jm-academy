@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JM 수학학원 · 자동채점</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; background:#f4f6fb; margin:0; padding:0; color:#1a1a1a; }
+  .wrap { max-width: 560px; margin: 0 auto; padding: 18px 16px 60px; }
+  .header { background:#1d4ed8; color:#fff; padding:18px 16px; border-radius:0 0 14px 14px; }
+  .header .logo { font-weight:800; font-size:15px; letter-spacing:0.5px; }
+  .header h1 { font-size:19px; margin:6px 0 2px; }
+  .header p { font-size:12.5px; margin:0; opacity:0.9; }
+  .card { background:#fff; border-radius:12px; padding:16px; margin-top:16px; box-shadow:0 1px 4px rgba(0,0,0,0.06); }
+  label { font-size:13px; font-weight:700; color:#444; display:block; margin-bottom:6px; }
+  select, input[type=text] { width:100%; padding:10px; border-radius:8px; border:1px solid #ddd; font-size:14px; margin-bottom:14px; background:#fafafa; }
+  .qgrid { display:grid; grid-template-columns: repeat(5, 1fr); gap:8px; }
+  .qitem { text-align:center; }
+  .qnum { font-size:11px; color:#888; margin-bottom:4px; }
+  .choices { display:flex; gap:3px; justify-content:center; flex-wrap:wrap; }
+  .choice { width:24px; height:24px; border-radius:50%; border:1px solid #ccc; background:#fff; font-size:11px; cursor:pointer; display:flex; align-items:center; justify-content:center; color:#555; }
+  .choice.sel { background:#1d4ed8; color:#fff; border-color:#1d4ed8; font-weight:700; }
+  .btn { width:100%; padding:13px; background:#1d4ed8; color:#fff; border:none; border-radius:10px; font-size:15px; font-weight:700; cursor:pointer; margin-top:18px; }
+  .btn:active { opacity:0.85; }
+  .btn.secondary { background:#fff; color:#1d4ed8; border:1.5px solid #1d4ed8; margin-top:8px; }
+  .result { text-align:center; padding:18px 10px; }
+  .score { font-size:40px; font-weight:800; color:#1d4ed8; }
+  .score-sub { color:#777; font-size:13px; margin-top:2px; }
+  .wrongbox { margin-top:16px; text-align:left; }
+  .wrongbox h3 { font-size:13px; color:#444; margin-bottom:8px; }
+  .wrongrow { display:flex; justify-content:space-between; font-size:13px; padding:7px 10px; border-radius:7px; background:#fef2f2; margin-bottom:5px; }
+  .wrongrow.ok { background:#f0fdf4; }
+  .unanswered { color:#c00; font-size:12px; margin-top:10px; text-align:center; }
+  .footer-note { font-size:11px; color:#999; text-align:center; margin-top:20px; line-height:1.6; }
+  .hidden { display:none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <div class="logo">JM 수학영어 · 리드인학원</div>
+    <h1>중간고사 기출 자동채점</h1>
+    <p>답을 고르고 제출하면 바로 채점됩니다</p>
+  </div>
+
+  <div class="card" id="setupCard">
+    <label>이름</label>
+    <input type="text" id="studentName" placeholder="이름을 입력하세요">
+
+    <label>시험 선택</label>
+    <select id="examSelect"></select>
+
+    <div id="qgridWrap"></div>
+    <div class="unanswered hidden" id="unansweredMsg">아직 풀지 않은 문제가 있어요. 그래도 제출할까요?</div>
+    <button class="btn" id="submitBtn">채점하기</button>
+  </div>
+
+  <div class="card hidden" id="resultCard">
+    <div class="result">
+      <div class="score" id="scoreBig">-</div>
+      <div class="score-sub" id="scoreSub"></div>
+    </div>
+    <div class="wrongbox">
+      <h3>문항별 결과</h3>
+      <div id="wrongList"></div>
+    </div>
+    <button class="btn secondary" id="retryBtn">다시 풀기</button>
+  </div>
+
+  <div class="footer-note">
+    JM 수학영어 · 리드인학원 · 제출 결과는 이 기기에만 표시됩니다.<br>
+    문항지의 QR코드를 다시 스캔하면 언제든 재접속할 수 있어요.
+  </div>
+</div>
+
+<script>
+const EXAMS = [{"year": 2022, "school": "동부중학교1", "answers": {"1": "5", "2": "3", "3": "4", "4": "2", "5": "4", "6": "1", "7": "2", "8": "1", "9": "3", "10": "5", "11": "2", "12": "4", "13": "2", "14": "4", "15": "4", "16": "3", "17": "1", "18": "1", "19": "5", "20": "3"}}, {"year": 2023, "school": "산동중학교1", "answers": {"1": "3", "2": "4", "3": "3", "4": "5", "5": "1", "6": "3", "7": "3", "8": "4", "9": "3", "10": "5", "11": "4", "12": "1", "13": "2", "14": "5", "15": "4", "16": "4", "17": "1", "18": "2", "19": "4", "20": "3", "21": "1", "22": "2", "23": "4", "24": "2", "25": "1"}}, {"year": 2023, "school": "옥계동부중1", "answers": {"1": "5", "2": "1", "3": "4", "4": "4", "5": "5", "6": "3", "7": "1", "8": "2", "9": "2", "10": "4", "11": "4", "12": "3", "13": "2", "14": "2", "15": "2", "16": "5", "17": "1", "18": "2", "19": "5", "20": "3", "21": "1", "22": "1", "23": "5", "24": "2", "25": "3"}}, {"year": 2023, "school": "구미인덕중1", "answers": {"1": "3", "2": "2", "3": "3", "4": "3", "5": "5", "6": "1", "7": "5", "8": "4", "9": "2", "10": "4", "11": "5", "12": "1", "13": "3", "14": "5", "15": "4", "16": "2", "17": "1", "18": "4", "19": "4", "20": "2", "21": "5", "22": "3", "23": "1", "24": "4", "25": "5"}}, {"year": 2023, "school": "해마루중학교1", "answers": {"1": "2", "2": "5", "3": "1", "4": "1", "5": "3", "6": "3", "7": "4", "8": "5", "9": "4", "10": "3", "11": "4", "12": "4", "13": "2", "14": "3", "15": "4", "16": "5", "17": "5", "18": "1", "19": "1", "20": "2", "21": "4", "22": "4", "23": "3", "24": "5", "25": "3"}}, {"year": 2024, "school": "산동중1", "answers": {"1": "4", "2": "5", "3": "1", "4": "2", "5": "3", "6": "4", "7": "3", "8": "5", "9": "4", "10": "5", "11": "3", "12": "1", "13": "5", "14": "4", "15": "2", "16": "3", "17": "2", "18": "5", "19": "1", "20": "2", "21": "3", "22": "1", "23": "5", "24": "1", "25": "2"}}, {"year": 2024, "school": "옥계동부중1", "answers": {"1": "4", "2": "1", "3": "5", "4": "3", "5": "3", "6": "2", "7": "1", "8": "5", "9": "5", "10": "3", "11": "4", "12": "1", "13": "4", "14": "5", "15": "2", "16": "2", "17": "4", "18": "1", "19": "5", "20": "4", "21": "2", "22": "3", "23": "5", "24": "2", "25": "3"}}, {"year": 2024, "school": "인덕중학교1", "answers": {"1": "5", "2": "4", "3": "2", "4": "4", "5": "2", "6": "4", "7": "5", "8": "1", "9": "1", "10": "3", "11": "2", "12": "5", "13": "2", "14": "1", "15": "5", "16": "3", "17": "2", "18": "1", "19": "5", "20": "1", "21": "3", "22": "4", "23": "3", "24": "5", "25": "4"}}, {"year": 2024, "school": "해마루중1", "answers": {"1": "4", "2": "3", "3": "2", "4": "1", "5": "2", "6": "3", "7": "4", "8": "1", "9": "5", "10": "2", "11": "4", "12": "4", "13": "1", "14": "5", "15": "5", "16": "2", "17": "2", "18": "4", "19": "1", "20": "3", "21": "2", "22": "4", "23": "5", "24": "1", "25": "3"}}];
+
+const circ = ["①","②","③","④","⑤"];
+const examSelect = document.getElementById('examSelect');
+EXAMS.forEach((e, i) => {
+  const opt = document.createElement('option');
+  opt.value = i;
+  opt.textContent = `${e.year}학년도 2학기 - ${e.school}`;
+  examSelect.appendChild(opt);
+});
+
+let currentAnswers = {};
+
+function renderGrid() {
+  const idx = examSelect.value;
+  const exam = EXAMS[idx];
+  const n = Object.keys(exam.answers).length;
+  currentAnswers = {};
+  const wrap = document.getElementById('qgridWrap');
+  wrap.innerHTML = '<label style="margin-top:4px;">답안 선택 (총 ' + n + '문항)</label><div class="qgrid" id="qgrid"></div>';
+  const grid = document.getElementById('qgrid');
+  for (let q = 1; q <= n; q++) {
+    const item = document.createElement('div');
+    item.className = 'qitem';
+    item.innerHTML = `<div class="qnum">${q}번</div><div class="choices" data-q="${q}">
+      ${[1,2,3,4,5].map(c => `<div class="choice" data-c="${c}">${c}</div>`).join('')}
+    </div>`;
+    grid.appendChild(item);
+  }
+  grid.querySelectorAll('.choice').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const qEl = btn.parentElement;
+      const q = qEl.dataset.q;
+      qEl.querySelectorAll('.choice').forEach(b => b.classList.remove('sel'));
+      btn.classList.add('sel');
+      currentAnswers[q] = btn.dataset.c;
+    });
+  });
+}
+examSelect.addEventListener('change', renderGrid);
+renderGrid();
+
+document.getElementById('submitBtn').addEventListener('click', () => {
+  const idx = examSelect.value;
+  const exam = EXAMS[idx];
+  const total = Object.keys(exam.answers).length;
+  const answeredCount = Object.keys(currentAnswers).length;
+  if (answeredCount < total) {
+    const msg = document.getElementById('unansweredMsg');
+    if (!msg.dataset.confirmed) {
+      msg.classList.remove('hidden');
+      msg.dataset.confirmed = '1';
+      return;
+    }
+  }
+  let correct = 0;
+  const rows = [];
+  for (let q = 1; q <= total; q++) {
+    const given = currentAnswers[q] || null;
+    const ans = exam.answers[q];
+    const isCorrect = given === ans;
+    if (isCorrect) correct++;
+    rows.push({q, given, ans, isCorrect});
+  }
+  document.getElementById('scoreBig').textContent = `${correct} / ${total}`;
+  const name = document.getElementById('studentName').value || '학생';
+  document.getElementById('scoreSub').textContent = `${name}님 · ${exam.year}학년도 2학기 - ${exam.school}`;
+  const wl = document.getElementById('wrongList');
+  wl.innerHTML = rows.map(r => `
+    <div class="wrongrow ${r.isCorrect ? 'ok' : ''}">
+      <span>${r.q}번</span>
+      <span>내 답: ${r.given ? circ[r.given-1] : '미응답'}</span>
+      <span>정답: ${circ[r.ans-1]}</span>
+      <span>${r.isCorrect ? '✅' : '❌'}</span>
+    </div>`).join('');
+
+  document.getElementById('setupCard').classList.add('hidden');
+  document.getElementById('resultCard').classList.remove('hidden');
+
+  // save to shared storage so the academy can review submissions
+  try {
+    const key = `submit:${exam.year}_${exam.school}:${name}:${Date.now()}`;
+    window.storage && window.storage.set(key, JSON.stringify({
+      name, year: exam.year, school: exam.school, score: correct, total, ts: Date.now()
+    }), true).catch(()=>{});
+  } catch(e) {}
+});
+
+document.getElementById('retryBtn').addEventListener('click', () => {
+  document.getElementById('resultCard').classList.add('hidden');
+  document.getElementById('setupCard').classList.remove('hidden');
+  document.getElementById('unansweredMsg').classList.add('hidden');
+  document.getElementById('unansweredMsg').dataset.confirmed = '';
+  renderGrid();
+});
+</script>
+</body>
+</html>
