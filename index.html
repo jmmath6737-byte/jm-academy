@@ -595,6 +595,7 @@ button,select,input,textarea{font-family:inherit}
     <button class="nav-item" onclick="goPage('att',this)"><span class="icon">✅</span>출결관리</button>
     <button class="nav-item" onclick="goPage('study',this)"><span class="icon">📚</span>학습관리</button>
     <button class="nav-item" onclick="goPage('report',this)"><span class="icon">📋</span>리포트</button>
+    <button class="nav-item" onclick="goPage('quizresults',this)"><span class="icon">🧮</span>자동채점</button>
     <button class="nav-item" onclick="goPage('calendar',this)"><span class="icon">🗓️</span>학사일정</button>
     <button class="nav-item" id="nav-tasks" onclick="goPage('tasks',this)"><span class="icon">🗂️</span>학원업무<span id="tasks-badge" class="badge badge-red" style="margin-left:auto;display:none"></span></button>
     <button class="nav-item" id="nav-payments" onclick="goPage('payments',this)"><span class="icon">💰</span>수납관리</button>
@@ -979,6 +980,32 @@ button,select,input,textarea{font-family:inherit}
     </div>
     <div id="report-content">
       <div style="padding:40px;text-align:center;color:var(--t3);font-size:14px">학생을 선택하면 리포트가 표시됩니다</div>
+    </div>
+  </div>
+
+
+  <!-- ══ 자동채점 현황 ══ -->
+  <div class="page" id="page-quizresults">
+    <div class="grid4" style="margin-bottom:16px">
+      <div class="stat-card"><div class="label">제출 건수</div><div class="value" id="qr-stat-count">0건</div><div class="sub">전체 시험 합계</div></div>
+      <div class="stat-card"><div class="label">참여 학생 수</div><div class="value" id="qr-stat-students">0명</div><div class="sub">중복 제외</div></div>
+      <div class="stat-card"><div class="label">평균 정답률</div><div class="value" id="qr-stat-avg">—</div><div class="sub" id="qr-stat-avg-sub">전체 기준</div></div>
+      <div class="stat-card"><div class="label">최근 제출</div><div class="value" id="qr-stat-latest" style="font-size:15px">—</div><div class="sub">가장 최근 채점</div></div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">📋 제출 결과 목록</span>
+        <div style="display:flex;gap:6px;align-items:center">
+          <select class="form-input" id="qr-exam-filter" style="min-width:200px;font-size:13px" onchange="renderQuizResultsList()">
+            <option value="">전체 시험</option>
+          </select>
+          <input type="text" class="form-input" id="qr-name-filter" placeholder="이름 검색" style="width:120px;font-size:13px" oninput="renderQuizResultsList()">
+          <button class="btn btn-blue btn-sm" onclick="loadQuizResults()">🔄 새로고침</button>
+        </div>
+      </div>
+      <div class="card-body" id="qr-list" style="max-height:520px;overflow-y:auto;padding:0">
+        <div style="padding:40px;text-align:center;color:var(--t3);font-size:13px">불러오는 중...</div>
+      </div>
     </div>
   </div>
 
@@ -1418,7 +1445,7 @@ button,select,input,textarea{font-family:inherit}
         💬 카카오톡 채널 추가 완료 (체크 시 강사가 채널로 직접 메시지 발송 가능)
       </label>
       <div class="form-group"><label class="form-label">집 주소</label><input class="form-input" id="ms-address" placeholder="예: 구미시 ○○로 12, 101동 502호"></div>
-      <div class="form-group"><label class="form-label">수강 과목</label><input class="form-input" id="ms-subject" placeholder="예: 영어 김윤진, 수학 이지혜" oninput="renderMsSubjectChips();renderMsTimeChips();">
+      <div class="form-group"><label class="form-label">수강 과목</label><input class="form-input" id="ms-subject" placeholder="예: 영어 김윤진, 수학 이지혜" oninput="renderMsSubjectChips();renderMsTimeChips();renderMsLeaveSubjects();">
         <div id="ms-subject-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div>
       </div>
       <div class="form-row">
@@ -1440,10 +1467,8 @@ button,select,input,textarea{font-family:inherit}
         <label class="form-label">퇴원일</label><input class="form-input" id="ms-withdraw-date" type="date">
       </div>
       <div class="form-group">
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--t2)">
-          <input type="checkbox" id="ms-on-leave" style="width:17px;height:17px;cursor:pointer;accent-color:var(--t2)">
-          ⏸ 임시 휴원 (시간표에서 이름·자리는 삭제하지 않고 회색으로만 표시)
-        </label>
+        <label class="form-label">⏸ 임시 휴원 (과목별로 선택 — 시간표에서 이름·자리는 삭제하지 않고 회색으로만 표시)</label>
+        <div id="ms-leave-subjects" style="display:flex;flex-direction:column;gap:6px"></div>
       </div>
       <div class="form-group"><label class="form-label">메모</label><textarea class="form-input" id="ms-memo" rows="2" placeholder="특이사항, 상담 내용 등"></textarea></div>
     </div>
@@ -3204,22 +3229,35 @@ function getAllStu(){
   return [...s].sort();
 }
 function getStuProfile(name){return DB.students.find(s=>s.name===name)||null;}
-// 임시 휴원 토글 — 시간표에서 이름/자리는 그대로 두고 색만 바꿔 표시(삭제 아님). 나중에 복귀하면 다시 눌러서 재원으로 전환.
-function isStuOnLeave(name){var p=getStuProfile(name);return !!(p&&p.onLeave);}
-function toggleStudentLeave(name){
+// 임시 휴원 토글 — 과목(반) 단위로 관리. 시간표에서 이름/자리는 그대로 두고 색만 바꿔 표시(삭제 아님).
+// 예: 영어만 휴원하고 수학은 계속 다니는 경우 → 영어 반에서만 회색으로 표시되고 수학 반은 그대로 유지됨.
+function isStuOnLeave(name,subject){
+  var p=getStuProfile(name);
+  if(!p||!p.onLeaveSubjects||!p.onLeaveSubjects.length)return false;
+  return subject?p.onLeaveSubjects.indexOf(subject)>=0:true; // subject 생략 시 "하나라도 휴원 과목이 있는지"
+}
+function studentLeaveLabel(prof){
+  if(!prof||!prof.onLeaveSubjects||!prof.onLeaveSubjects.length)return '';
+  return prof.onLeaveSubjects.join(', ');
+}
+function toggleStudentLeave(name,subject){
+  if(!subject){toast('과목 정보가 없어 휴원 처리를 할 수 없습니다');return;}
   if(!DB.students)DB.students=[];
   var prof=getStuProfile(name);
-  if(prof){prof.onLeave=!prof.onLeave;}
-  else{prof={id:uid++,name:name,onLeave:true};DB.students.push(prof);}
+  if(!prof){prof={id:uid++,name:name,onLeaveSubjects:[]};DB.students.push(prof);}
+  if(!prof.onLeaveSubjects)prof.onLeaveSubjects=[];
+  var idx=prof.onLeaveSubjects.indexOf(subject);
+  var nowOn;
+  if(idx>=0){prof.onLeaveSubjects.splice(idx,1);nowOn=false;}
+  else{prof.onLeaveSubjects.push(subject);nowOn=true;}
   save();
-  toast(name+(prof.onLeave?' 휴원 처리되었습니다 (시간표에 회색으로 표시됩니다)':' 재원으로 복귀되었습니다'));
-  var row=document.getElementById('am-'+name);
-  if(row){var b=row.querySelector('.lvb');if(b){b.classList.toggle('on',!!prof.onLeave);b.textContent=prof.onLeave?'▶ 재원 복귀':'⏸ 휴원';}}
-  var msLeave=document.getElementById('ms-on-leave');
-  if(msLeave && document.getElementById('ms-name') && document.getElementById('ms-name').value.trim()===name)msLeave.checked=!!prof.onLeave;
+  toast(name+' ['+subject+'] '+(nowOn?'휴원 처리되었습니다 (해당 반만 시간표에 회색으로 표시됩니다)':'재원으로 복귀되었습니다'));
+  try{if(attModalData && attModalData.subject===subject && (attModalData.stu||[]).indexOf(name)>=0)openAttModal(attModalData.dk,attModalData.ri,attModalData.ci,attModalData.subject,attModalData.stu,attModalData.time);}catch(e){}
+  try{if(typeof renderMsLeaveSubjects==='function' && document.getElementById('ms-name') && document.getElementById('ms-name').value.trim()===name)renderMsLeaveSubjects();}catch(e){}
   try{if(document.getElementById('sched-grid2') && typeof renderSchedTable==='function')renderSchedTable();}catch(e){}
   try{if(document.getElementById('settings-cls-list') && typeof renderSettingsClsList==='function')renderSettingsClsList();}catch(e){}
   try{if(curPage==='dash' && typeof renderDash==='function')renderDash();}catch(e){}
+  return nowOn;
 }
 function avatarColor(name){
   const colors=['#1e2d4a','#2d6be4','#18a06b','#d97706','#7c3aed','#e03a3a','#0891b2'];
@@ -3249,6 +3287,7 @@ const PAGE_TITLES = {
   att:['출결 관리','학생별 출결 현황'],
   study:['학습 관리','교재 진도 · 단어시험 관리'],
   report:['리포트','학생별 종합 리포트'],
+  quizresults:['자동채점 현황','중간고사 기출 · 학생 QR 채점 제출 결과'],
   calendar:['학사일정','학원 월간 학사 일정 관리'],
   tasks:['학원업무','블로그 · 채널공지 · 학생상담 · 교재/물품 주문관리'],
   payments:['수납관리','원생 학원비 수납 현황 · 강사별 회원수 · 퇴원율'],
@@ -3290,6 +3329,7 @@ function refreshPage(page){
     }
     fillAllSelects();renderReport();
   }
+  if(page==='quizresults')loadQuizResults();
   if(page==='calendar')renderCalendar();
   if(page==='tasks')refreshTasksPage();
   if(page==='payments'){fillAllSelects();renderPaymentsPage();}
@@ -3301,6 +3341,84 @@ function refreshPage(page){
 }
 
 // ════════════════════════════════════════
+// 자동채점 현황 (quiz_submissions)
+// ════════════════════════════════════════
+var quizResultsCache=[];
+async function loadQuizResults(){
+  var listEl=document.getElementById('qr-list');
+  if(!listEl)return;
+  listEl.innerHTML='<div style="padding:40px;text-align:center;color:var(--t3);font-size:13px">불러오는 중...</div>';
+  try{
+    if(!supabaseClient)throw new Error('no client');
+    var res=await supabaseClient.from('quiz_submissions').select('*').order('created_at',{ascending:false});
+    if(res.error)throw res.error;
+    quizResultsCache=res.data||[];
+    fillQuizExamFilter();
+    renderQuizResultsList();
+  }catch(e){
+    listEl.innerHTML='<div style="padding:40px;text-align:center;color:var(--red);font-size:13px">불러오기 실패: '+(e.message||e)+'</div>';
+  }
+}
+function fillQuizExamFilter(){
+  var sel=document.getElementById('qr-exam-filter');
+  if(!sel)return;
+  var cur=sel.value;
+  var seen={};
+  var opts=['<option value="">전체 시험</option>'];
+  quizResultsCache.forEach(function(r){
+    var key=r.exam_year+'__'+r.exam_school;
+    if(!seen[key]){
+      seen[key]=true;
+      opts.push('<option value="'+key+'">'+r.exam_year+'학년도 2학기 - '+r.exam_school+'</option>');
+    }
+  });
+  sel.innerHTML=opts.join('');
+  sel.value=cur;
+}
+function renderQuizResultsList(){
+  var listEl=document.getElementById('qr-list');
+  if(!listEl)return;
+  var examFilter=(document.getElementById('qr-exam-filter')||{}).value||'';
+  var nameFilter=((document.getElementById('qr-name-filter')||{}).value||'').trim();
+  var rows=quizResultsCache.filter(function(r){
+    if(examFilter&&(r.exam_year+'__'+r.exam_school)!==examFilter)return false;
+    if(nameFilter&&!(r.student_name||'').includes(nameFilter))return false;
+    return true;
+  });
+
+  var count=rows.length;
+  var students={};rows.forEach(function(r){students[r.student_name]=true;});
+  var studentCount=Object.keys(students).length;
+  var avgPct=count?Math.round(rows.reduce(function(s,r){return s+(r.score/r.total);},0)/count*100):0;
+  document.getElementById('qr-stat-count').textContent=count+'건';
+  document.getElementById('qr-stat-students').textContent=studentCount+'명';
+  document.getElementById('qr-stat-avg').textContent=count?avgPct+'%':'—';
+  document.getElementById('qr-stat-latest').textContent=count?fmtQuizTime(rows[0].created_at):'—';
+
+  if(!rows.length){
+    listEl.innerHTML='<div style="padding:40px;text-align:center;color:var(--t3);font-size:13px">해당하는 제출 결과가 없습니다</div>';
+    return;
+  }
+  listEl.innerHTML=rows.map(function(r){
+    var pct=r.score/r.total;
+    var color=pct>=0.8?'var(--green)':(pct>=0.5?'var(--amber)':'var(--red)');
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border)">'+
+      '<div>'+
+        '<div style="font-size:13.5px;font-weight:700;color:var(--t1)">'+esc(r.student_name)+'</div>'+
+        '<div style="font-size:11.5px;color:var(--t3);margin-top:2px">'+r.exam_year+'학년도 2학기 - '+esc(r.exam_school)+' · '+fmtQuizTime(r.created_at)+'</div>'+
+      '</div>'+
+      '<div style="font-size:16px;font-weight:800;color:'+color+'">'+r.score+' / '+r.total+'</div>'+
+    '</div>';
+  }).join('');
+}
+function fmtQuizTime(ts){
+  var d=new Date(ts);
+  return (d.getMonth()+1)+'/'+d.getDate()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+}
+function esc(s){
+  return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});
+}
+
 //  SELECT 채우기
 // ════════════════════════════════════════
 function fillAllSelects(){
@@ -3516,7 +3634,7 @@ function renderTodayAttList(students, day){
       av.style.cssText='display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:'+avatarColor(name)+';color:#fff;font-size:11px;font-weight:700;flex-shrink:0';
       av.textContent=name[0];
 
-      var onLeaveNow=isStuOnLeave(name);
+      var onLeaveNow=isStuOnLeave(name,gSubj);
       var nm=document.createElement('span');
       nm.style.cssText='font-size:13px;font-weight:600;min-width:46px;flex-shrink:0'+(onLeaveNow?';color:var(--t3);text-decoration:line-through':';color:var(--t1)');
       nm.textContent=(onLeaveNow?'⏸ ':'')+name;
@@ -3585,8 +3703,8 @@ function renderTodayAttList(students, day){
       var lvBtn=document.createElement('button');
       lvBtn.className='lvb'+(onLeaveNow?' on':'');
       lvBtn.textContent=onLeaveNow?'▶ 재원 복귀':'⏸ 휴원';
-      lvBtn.title='삭제하지 않고 시간표에 회색으로 표시 — 나중에 복귀하면 다시 눌러 재원으로 전환';
-      lvBtn.onclick=(function(n){return function(){toggleStudentLeave(n);};})(name);
+      lvBtn.title='이 반('+gSubj+')만 휴원 처리 — 다른 과목 수업은 그대로 유지됩니다. 삭제 아님, 나중에 복귀하면 다시 눌러 재원으로 전환';
+      lvBtn.onclick=(function(n,subj){return function(){toggleStudentLeave(n,subj);};})(name,gSubj);
       rowDiv.appendChild(lvBtn);
 
       body.appendChild(rowDiv);
@@ -4056,7 +4174,8 @@ function openStudentModal(id=null){
   renderMsTimeChips();
   document.getElementById('ms-status').value=(stu&&stu.status==='withdrawn')?'withdrawn':'active';
   document.getElementById('ms-withdraw-date').value=stu?stu.withdrawDate||'':'';
-  document.getElementById('ms-on-leave').checked=!!(stu&&stu.onLeave);
+  _msLeaveSubjects=[...(stu&&stu.onLeaveSubjects||[])];
+  renderMsLeaveSubjects();
   toggleWithdrawDateField();
   var feeGroup=document.getElementById('ms-fee-group');
   var isDirector=currentUser && currentUser.role==='director';
@@ -4190,6 +4309,29 @@ function toggleMsTimeChip(btn,slot){
   else{list.push(slot);btn.classList.remove('btn-gray');btn.classList.add('btn-blue');}
   input.value=list.join(', ');
 }
+function renderMsLeaveSubjects(){
+  var wrap=document.getElementById('ms-leave-subjects');
+  if(!wrap)return;
+  var subjInput=document.getElementById('ms-subject');
+  var subjects=(subjInput.value||'').split(',').map(function(s){return s.trim();}).filter(Boolean);
+  if(!subjects.length){wrap.innerHTML='<span style="font-size:11px;color:var(--t3)">먼저 수강 과목을 입력해주세요</span>';return;}
+  wrap.innerHTML='';
+  subjects.forEach(function(subj){
+    var lab=document.createElement('label');
+    lab.style.cssText='display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--t2)';
+    var cb=document.createElement('input');cb.type='checkbox';
+    cb.style.cssText='width:17px;height:17px;cursor:pointer;accent-color:var(--t2)';
+    cb.checked=_msLeaveSubjects.indexOf(subj)>=0;
+    cb.onchange=(function(s){return function(){
+      var idx=_msLeaveSubjects.indexOf(s);
+      if(this.checked){if(idx<0)_msLeaveSubjects.push(s);}
+      else{if(idx>=0)_msLeaveSubjects.splice(idx,1);}
+    };})(subj);
+    lab.appendChild(cb);
+    lab.appendChild(document.createTextNode(subj+' 휴원'));
+    wrap.appendChild(lab);
+  });
+}
 function toggleWithdrawDateField(){
   var sel=document.getElementById('ms-status');
   var grp=document.getElementById('ms-withdraw-date-group');
@@ -4231,7 +4373,7 @@ function saveStudent(){
     status:document.getElementById('ms-status').value,
     withdrawDate:document.getElementById('ms-status').value==='withdrawn'?document.getElementById('ms-withdraw-date').value:'',
     channelAdded:document.getElementById('ms-channel-added').checked,
-    onLeave:document.getElementById('ms-on-leave').checked,
+    onLeaveSubjects:[..._msLeaveSubjects],
     updatedAt:Date.now()
   };
   if(editStudentId){
@@ -4292,7 +4434,8 @@ function renderStudentList(q=''){
     var subLine=prof?(((prof.school||'')+' '+gradeLabel).trim()||'미등록'):'미등록';
     var chBadge=prof?('<span onclick="event.stopPropagation();toggleChannelAdded(\''+name.replace(/'/g,"\\'")+'\')" title="'+(prof.channelAdded?'카카오톡 채널 추가 완료 — 클릭하면 해제':'채널 미추가 — 클릭하면 완료로 표시')+'" style="cursor:pointer;margin-left:6px">'+(prof.channelAdded?'💬✅':'💬✕')+'</span>'):'';
     var smsBtn=(prof&&(prof.phone||prof.phone2))?('<button class="btn btn-gray btn-xs" style="margin-left:6px;flex-shrink:0" title="학부모님께 문자 보내기" onclick="event.stopPropagation();smsParent(\''+name.replace(/'/g,"\\'")+'\')">📱 문자</button>'):'';
-    var leaveBadge=(prof&&prof.onLeave)?'<span style="margin-left:6px;font-size:10px;padding:1px 6px;border-radius:8px;background:var(--s2);color:var(--t3);border:1px dashed var(--border2)">⏸ 휴원</span>':'';
+    var leaveLbl=studentLeaveLabel(prof);
+    var leaveBadge=leaveLbl?('<span style="margin-left:6px;font-size:10px;padding:1px 6px;border-radius:8px;background:var(--s2);color:var(--t3);border:1px dashed var(--border2)" title="'+leaveLbl+' 휴원 중">⏸ 휴원('+leaveLbl+')</span>'):'';
     item.innerHTML=`<div class="stu-avatar" style="background:${avatarColor(name)};width:34px;height:34px;font-size:13px">${name[0]}</div>
     <div class="info">
       <div class="name">${name}${leaveBadge}</div>
@@ -4408,7 +4551,7 @@ function showStudentProfile(name){
   // 프로필 헤더
   var hdr=document.createElement('div');hdr.className='profile-header';hdr.style.marginBottom='14px';
   hdr.innerHTML='<div class="profile-avatar">'+name[0]+'</div>'+
-    '<div><div class="profile-name">'+name+(prof&&prof.onLeave?' <span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;background:var(--s2);color:var(--t3);border:1px dashed var(--border2);vertical-align:middle">⏸ 휴원</span>':'')+'</div>'+
+    '<div><div class="profile-name">'+name+(studentLeaveLabel(prof)?(' <span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;background:var(--s2);color:var(--t3);border:1px dashed var(--border2);vertical-align:middle">⏸ 휴원('+studentLeaveLabel(prof)+')</span>'):'')+'</div>'+
     '<div class="profile-sub">'+(prof?((prof.school||'')+' '+gradeToLabel(prof.grade)).trim():'미등록')+(prof&&prof.channelAdded?' · 💬✅':'')+'</div>'+
     '<div class="profile-sub" style="margin-top:3px">'+schedInfo.map(function(s){return s.subj+' '+s.time;}).join(' / ')+'</div></div>'+
     '<div class="profile-stats">'+
@@ -4425,7 +4568,7 @@ function showStudentProfile(name){
     var infoGrid=document.createElement('div');infoGrid.className='grid2';infoGrid.style.marginBottom='14px';
     var c1=document.createElement('div');c1.className='card';
     c1.innerHTML='<div class="card-head"><span class="card-title">기본 정보</span></div><div class="card-body">';
-    var infoRows=[['생년월일',prof.birth],['학생 연락처',prof.stuPhone],['학부모 성함',prof.parentName],['학부모 연락처1',prof.phone],['학부모 연락처2',prof.phone2],['집 주소',prof.address],['등원 장소',prof.pickupIn||prof.pickup],['하원 장소',prof.pickupOut],['입회일',prof.join],['수업 시간',prof.time],['월 수업료',prof.fee],['수강 과목',prof.subject],['재원 상태',prof.status==='withdrawn'?('퇴원 ('+(prof.withdrawDate||'-')+')'):(prof.onLeave?'⏸ 휴원 중':'재원')],['카카오톡 채널',prof.channelAdded?'💬✅ 추가 완료':'💬✕ 미추가']];
+    var infoRows=[['생년월일',prof.birth],['학생 연락처',prof.stuPhone],['학부모 성함',prof.parentName],['학부모 연락처1',prof.phone],['학부모 연락처2',prof.phone2],['집 주소',prof.address],['등원 장소',prof.pickupIn||prof.pickup],['하원 장소',prof.pickupOut],['입회일',prof.join],['수업 시간',prof.time],['월 수업료',prof.fee],['수강 과목',prof.subject],['재원 상태',prof.status==='withdrawn'?('퇴원 ('+(prof.withdrawDate||'-')+')'):(studentLeaveLabel(prof)?('⏸ 일부 과목 휴원 중 ('+studentLeaveLabel(prof)+')'):'재원')],['카카오톡 채널',prof.channelAdded?'💬✅ 추가 완료':'💬✕ 미추가']];
     if(!(currentUser && currentUser.role==='director')) infoRows=infoRows.filter(function(r){return r[0]!=='월 수업료';});
     infoRows.forEach(function(row){
       if(!row[1])return;
@@ -4733,7 +4876,7 @@ function buildAllDaysUnifiedTable(container){
         if(stu&&stu.length){
           td.className='has-s';td.style.cursor='pointer';
           var wrap=document.createElement('div');wrap.style.cssText='display:flex;flex-direction:column;align-items:flex-start;gap:1px';
-          stu.forEach(function(n){var sp=document.createElement('div');var prof=getStuProfile(n);sp.className='chip2 '+CCLS[ci%CCLS.length]+(prof&&prof.onLeave?' on-leave':'');sp.textContent=(prof&&prof.onLeave?'⏸ ':'')+n+(prof&&isBirthdayToday(prof.birth)?' 🎂':'');wrap.appendChild(sp);});
+          stu.forEach(function(n){var sp=document.createElement('div');var prof=getStuProfile(n);var onLv=isStuOnLeave(n,dd.day.cols[ci]);sp.className='chip2 '+CCLS[ci%CCLS.length]+(onLv?' on-leave':'');sp.textContent=(onLv?'⏸ ':'')+n+(prof&&isBirthdayToday(prof.birth)?' 🎂':'');wrap.appendChild(sp);});
           td.appendChild(wrap);
           var editBtn2=document.createElement('button');
           editBtn2.style.cssText='font-size:9px;padding:1px 5px;border-radius:4px;border:1px solid var(--border);background:var(--s2);color:var(--t2);cursor:pointer;width:100%;margin-top:2px;pointer-events:auto';
@@ -4803,7 +4946,7 @@ function buildSubjectTableInto(container,subjName){
       if(stu&&stu.length){
         td.className='has-s';td.style.cursor='pointer';
         var wrap=document.createElement('div');wrap.style.cssText='display:flex;flex-direction:column;align-items:flex-start;gap:1px';
-        stu.forEach(function(n){var sp=document.createElement('div');var prof=getStuProfile(n);sp.className='chip2 '+CCLS[ci%CCLS.length]+(prof&&prof.onLeave?' on-leave':'');sp.textContent=(prof&&prof.onLeave?'⏸ ':'')+n+(prof&&isBirthdayToday(prof.birth)?' 🎂':'');wrap.appendChild(sp);});
+        stu.forEach(function(n){var sp=document.createElement('div');var prof=getStuProfile(n);var onLv=isStuOnLeave(n,subjName);sp.className='chip2 '+CCLS[ci%CCLS.length]+(onLv?' on-leave':'');sp.textContent=(onLv?'⏸ ':'')+n+(prof&&isBirthdayToday(prof.birth)?' 🎂':'');wrap.appendChild(sp);});
         td.appendChild(wrap);
         var editBtn2=document.createElement('button');
         editBtn2.style.cssText='font-size:9px;padding:1px 5px;border-radius:4px;border:1px solid var(--border);background:var(--s2);color:var(--t2);cursor:pointer;width:100%;margin-top:2px;pointer-events:auto';
@@ -4872,7 +5015,7 @@ function buildDayTableInto(tbl2,dayIdx){
           td.appendChild(badge);
         }
         var chipWrap =document.createElement('div');chipWrap.style.cssText='display:flex;flex-wrap:wrap;gap:2px;margin-bottom:3px;pointer-events:none';
-        stu.forEach(function(n){var sp =document.createElement('span');var prof=getStuProfile(n);sp.className='chip2 '+CCLS[ci%CCLS.length]+(prof&&prof.onLeave?' on-leave':'');sp.textContent=(prof&&prof.onLeave?'⏸ ':'')+n+(prof&&isBirthdayToday(prof.birth)?' 🎂':'');chipWrap.appendChild(sp);});
+        stu.forEach(function(n){var sp =document.createElement('span');var prof=getStuProfile(n);var onLv=isStuOnLeave(n,day.cols[ci]);sp.className='chip2 '+CCLS[ci%CCLS.length]+(onLv?' on-leave':'');sp.textContent=(onLv?'⏸ ':'')+n+(prof&&isBirthdayToday(prof.birth)?' 🎂':'');chipWrap.appendChild(sp);});
         var editBtn =document.createElement('button');
         editBtn.style.cssText='font-size:10px;padding:2px 6px;border-radius:4px;border:1px solid var(--border);background:var(--s2);color:var(--t2);cursor:pointer;width:100%;pointer-events:auto';
         editBtn.textContent='✏️ 추가·삭제';
@@ -4912,7 +5055,7 @@ function openAttModal(dk,ri,ci,subject,stu,time){
     var row=document.createElement('div');row.id='am-'+name;
     row.style.cssText='display:flex;align-items:center;gap:6px;padding:8px 0;border-bottom:1px solid var(--border);flex-wrap:wrap';
     var av=document.createElement('div');av.style.cssText='width:28px;height:28px;border-radius:50%;background:'+avatarColor(name)+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0';av.textContent=name[0];
-    var nm=document.createElement('div');nm.style.cssText='font-size:13px;font-weight:500;flex:1;min-width:0'+(isStuOnLeave(name)?';color:var(--t3);text-decoration:line-through':'');nm.textContent=(isStuOnLeave(name)?'⏸ ':'')+name;
+    var nm=document.createElement('div');nm.style.cssText='font-size:13px;font-weight:500;flex:1;min-width:0'+(isStuOnLeave(name,subject)?';color:var(--t3);text-decoration:line-through':'');nm.textContent=(isStuOnLeave(name,subject)?'⏸ ':'')+name;
     var ag=document.createElement('div');ag.style.cssText='display:flex;gap:2px;flex-shrink:0';
     [{v:'o',l:'출석'},{v:'lt',l:'지각'},{v:'x',l:'결석'}].forEach(function(it){
       var b=document.createElement('button');b.className='ab '+it.v+(cur===it.v?' on':'');b.textContent=it.l;
@@ -4936,11 +5079,11 @@ function openAttModal(dk,ri,ci,subject,stu,time){
     });
     var sep2=document.createElement('div');sep2.style.cssText='width:1px;height:16px;background:var(--border);flex-shrink:0';
     var lvBtn=document.createElement('button');
-    var onLeaveNow=isStuOnLeave(name);
+    var onLeaveNow=isStuOnLeave(name,subject);
     lvBtn.className='lvb'+(onLeaveNow?' on':'');
     lvBtn.textContent=onLeaveNow?'▶ 재원 복귀':'⏸ 휴원';
-    lvBtn.title='삭제하지 않고 시간표에 회색으로 표시 — 나중에 복귀하면 다시 눌러 재원으로 전환';
-    lvBtn.onclick=(function(n){return function(){toggleStudentLeave(n);};})(name);
+    lvBtn.title='이 반('+subject+')만 휴원 처리 — 다른 과목 수업은 그대로 유지됩니다. 삭제 아님, 나중에 복귀하면 다시 눌러 재원으로 전환';
+    lvBtn.onclick=(function(n,subj){return function(){toggleStudentLeave(n,subj);};})(name,subject);
     row.appendChild(av);row.appendChild(nm);row.appendChild(ag);row.appendChild(sep);row.appendChild(hg);row.appendChild(sep2);row.appendChild(lvBtn);grid.appendChild(row);
   });
   s1.appendChild(grid);body.appendChild(s1);
@@ -4992,6 +5135,7 @@ function saveAttModal(){closeModal('modal-att');toast('출결 저장 완료');}
 
 // ── 반 편집 모달 ──
 let _clsEditStu=[];
+let _msLeaveSubjects=[]; // 학생 편집 폼에서 현재 체크된 "휴원 과목" 임시 목록 (저장 시 stu.onLeaveSubjects 로 반영)
 function openClsModal(dayIdx,rowIdx,colIdx,isEdit,mergeRowIndices){
   clsModalData={dayIdx,rowIdx,colIdx,mergeRowIndices:(mergeRowIndices&&mergeRowIndices.length>1)?mergeRowIndices:null};
   const dk=DKEYS[dayIdx];const day=DB.schedule[dk];
@@ -5940,7 +6084,7 @@ function renderSettingsClsList(){
         <button class="btn btn-gray btn-xs" onclick="openClsModal(${curSettingsDay},${ri},${ci},true)">편집</button>
         <button class="btn btn-gray btn-xs" style="margin-left:4px" onclick="delCls(${curSettingsDay},${ri},${ci})">삭제</button>
       </div>
-      <div style="display:flex;flex-wrap:wrap;gap:3px">${stu.map(n=>{var prof=getStuProfile(n);return `<span class="chip2 ${CCLS[ci%CCLS.length]}${prof&&prof.onLeave?' on-leave':''}">${prof&&prof.onLeave?'⏸ ':''}${n}</span>`;}).join('')}</div>`;
+      <div style="display:flex;flex-wrap:wrap;gap:3px">${stu.map(n=>{var onLv=isStuOnLeave(n,day.cols[ci]);return `<span class="chip2 ${CCLS[ci%CCLS.length]}${onLv?' on-leave':''}">${onLv?'⏸ ':''}${n}</span>`;}).join('')}</div>`;
       el.appendChild(div);
     });
   });
