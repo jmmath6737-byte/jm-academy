@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>JM 수학학원 · 자동채점</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   * { box-sizing: border-box; }
   body { font-family: -apple-system, "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; background:#f4f6fb; margin:0; padding:0; color:#1a1a1a; }
@@ -23,10 +24,15 @@
   .choice.sel { background:#1d4ed8; color:#fff; border-color:#1d4ed8; font-weight:700; }
   .btn { width:100%; padding:13px; background:#1d4ed8; color:#fff; border:none; border-radius:10px; font-size:15px; font-weight:700; cursor:pointer; margin-top:18px; }
   .btn:active { opacity:0.85; }
+  .btn:disabled { opacity:0.5; }
   .btn.secondary { background:#fff; color:#1d4ed8; border:1.5px solid #1d4ed8; margin-top:8px; }
   .result { text-align:center; padding:18px 10px; }
   .score { font-size:40px; font-weight:800; color:#1d4ed8; }
   .score-sub { color:#777; font-size:13px; margin-top:2px; }
+  .save-status { margin-top:10px; font-size:12.5px; padding:8px; border-radius:8px; }
+  .save-status.ok { background:#f0fdf4; color:#15803d; }
+  .save-status.fail { background:#fef2f2; color:#b91c1c; }
+  .save-status.pending { background:#f4f6fb; color:#666; }
   .wrongbox { margin-top:16px; text-align:left; }
   .wrongbox h3 { font-size:13px; color:#444; margin-bottom:8px; }
   .wrongrow { display:flex; justify-content:space-between; font-size:13px; padding:7px 10px; border-radius:7px; background:#fef2f2; margin-bottom:5px; }
@@ -41,7 +47,7 @@
   <div class="header">
     <div class="logo">JM 수학영어 · 리드인학원</div>
     <h1>중간고사 기출 자동채점</h1>
-    <p>답을 고르고 제출하면 바로 채점됩니다</p>
+    <p>답을 고르고 제출하면 바로 채점되고, 선생님께도 결과가 저장됩니다</p>
   </div>
 
   <div class="card" id="setupCard">
@@ -60,6 +66,7 @@
     <div class="result">
       <div class="score" id="scoreBig">-</div>
       <div class="score-sub" id="scoreSub"></div>
+      <div class="save-status pending hidden" id="saveStatus"></div>
     </div>
     <div class="wrongbox">
       <h3>문항별 결과</h3>
@@ -69,13 +76,19 @@
   </div>
 
   <div class="footer-note">
-    JM 수학영어 · 리드인학원 · 제출 결과는 이 기기에만 표시됩니다.<br>
+    JM 수학영어 · 리드인학원<br>
     문항지의 QR코드를 다시 스캔하면 언제든 재접속할 수 있어요.
   </div>
 </div>
 
 <script>
 const EXAMS = [{"year": 2022, "school": "동부중학교1", "answers": {"1": "5", "2": "3", "3": "4", "4": "2", "5": "4", "6": "1", "7": "2", "8": "1", "9": "3", "10": "5", "11": "2", "12": "4", "13": "2", "14": "4", "15": "4", "16": "3", "17": "1", "18": "1", "19": "5", "20": "3"}}, {"year": 2023, "school": "산동중학교1", "answers": {"1": "3", "2": "4", "3": "3", "4": "5", "5": "1", "6": "3", "7": "3", "8": "4", "9": "3", "10": "5", "11": "4", "12": "1", "13": "2", "14": "5", "15": "4", "16": "4", "17": "1", "18": "2", "19": "4", "20": "3", "21": "1", "22": "2", "23": "4", "24": "2", "25": "1"}}, {"year": 2023, "school": "옥계동부중1", "answers": {"1": "5", "2": "1", "3": "4", "4": "4", "5": "5", "6": "3", "7": "1", "8": "2", "9": "2", "10": "4", "11": "4", "12": "3", "13": "2", "14": "2", "15": "2", "16": "5", "17": "1", "18": "2", "19": "5", "20": "3", "21": "1", "22": "1", "23": "5", "24": "2", "25": "3"}}, {"year": 2023, "school": "구미인덕중1", "answers": {"1": "3", "2": "2", "3": "3", "4": "3", "5": "5", "6": "1", "7": "5", "8": "4", "9": "2", "10": "4", "11": "5", "12": "1", "13": "3", "14": "5", "15": "4", "16": "2", "17": "1", "18": "4", "19": "4", "20": "2", "21": "5", "22": "3", "23": "1", "24": "4", "25": "5"}}, {"year": 2023, "school": "해마루중학교1", "answers": {"1": "2", "2": "5", "3": "1", "4": "1", "5": "3", "6": "3", "7": "4", "8": "5", "9": "4", "10": "3", "11": "4", "12": "4", "13": "2", "14": "3", "15": "4", "16": "5", "17": "5", "18": "1", "19": "1", "20": "2", "21": "4", "22": "4", "23": "3", "24": "5", "25": "3"}}, {"year": 2024, "school": "산동중1", "answers": {"1": "4", "2": "5", "3": "1", "4": "2", "5": "3", "6": "4", "7": "3", "8": "5", "9": "4", "10": "5", "11": "3", "12": "1", "13": "5", "14": "4", "15": "2", "16": "3", "17": "2", "18": "5", "19": "1", "20": "2", "21": "3", "22": "1", "23": "5", "24": "1", "25": "2"}}, {"year": 2024, "school": "옥계동부중1", "answers": {"1": "4", "2": "1", "3": "5", "4": "3", "5": "3", "6": "2", "7": "1", "8": "5", "9": "5", "10": "3", "11": "4", "12": "1", "13": "4", "14": "5", "15": "2", "16": "2", "17": "4", "18": "1", "19": "5", "20": "4", "21": "2", "22": "3", "23": "5", "24": "2", "25": "3"}}, {"year": 2024, "school": "인덕중학교1", "answers": {"1": "5", "2": "4", "3": "2", "4": "4", "5": "2", "6": "4", "7": "5", "8": "1", "9": "1", "10": "3", "11": "2", "12": "5", "13": "2", "14": "1", "15": "5", "16": "3", "17": "2", "18": "1", "19": "5", "20": "1", "21": "3", "22": "4", "23": "3", "24": "5", "25": "4"}}, {"year": 2024, "school": "해마루중1", "answers": {"1": "4", "2": "3", "3": "2", "4": "1", "5": "2", "6": "3", "7": "4", "8": "1", "9": "5", "10": "2", "11": "4", "12": "4", "13": "1", "14": "5", "15": "5", "16": "2", "17": "2", "18": "4", "19": "1", "20": "3", "21": "2", "22": "4", "23": "5", "24": "1", "25": "3"}}];
+const SUPABASE_URL = 'https://anrggoatoseukqigdbrt.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_oo60byvXjR5G-_9pMpm9xQ_6QsQbBks';
+let supabaseClient = null;
+try {
+  supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+} catch (e) {}
 
 const circ = ["①","②","③","④","⑤"];
 const examSelect = document.getElementById('examSelect');
@@ -117,7 +130,7 @@ function renderGrid() {
 examSelect.addEventListener('change', renderGrid);
 renderGrid();
 
-document.getElementById('submitBtn').addEventListener('click', () => {
+document.getElementById('submitBtn').addEventListener('click', async () => {
   const idx = examSelect.value;
   const exam = EXAMS[idx];
   const total = Object.keys(exam.answers).length;
@@ -130,6 +143,8 @@ document.getElementById('submitBtn').addEventListener('click', () => {
       return;
     }
   }
+  const name = (document.getElementById('studentName').value || '').trim() || '이름없음';
+
   let correct = 0;
   const rows = [];
   for (let q = 1; q <= total; q++) {
@@ -140,7 +155,6 @@ document.getElementById('submitBtn').addEventListener('click', () => {
     rows.push({q, given, ans, isCorrect});
   }
   document.getElementById('scoreBig').textContent = `${correct} / ${total}`;
-  const name = document.getElementById('studentName').value || '학생';
   document.getElementById('scoreSub').textContent = `${name}님 · ${exam.year}학년도 2학기 - ${exam.school}`;
   const wl = document.getElementById('wrongList');
   wl.innerHTML = rows.map(r => `
@@ -154,13 +168,30 @@ document.getElementById('submitBtn').addEventListener('click', () => {
   document.getElementById('setupCard').classList.add('hidden');
   document.getElementById('resultCard').classList.remove('hidden');
 
-  // save to shared storage so the academy can review submissions
+  const statusEl = document.getElementById('saveStatus');
+  statusEl.classList.remove('hidden', 'ok', 'fail');
+  statusEl.classList.add('pending');
+  statusEl.textContent = '선생님께 결과 저장 중...';
+
   try {
-    const key = `submit:${exam.year}_${exam.school}:${name}:${Date.now()}`;
-    window.storage && window.storage.set(key, JSON.stringify({
-      name, year: exam.year, school: exam.school, score: correct, total, ts: Date.now()
-    }), true).catch(()=>{});
-  } catch(e) {}
+    if (!supabaseClient) throw new Error('no client');
+    const { error } = await supabaseClient.from('quiz_submissions').insert({
+      student_name: name,
+      exam_year: exam.year,
+      exam_school: exam.school,
+      score: correct,
+      total: total,
+      answers: currentAnswers
+    });
+    if (error) throw error;
+    statusEl.classList.remove('pending');
+    statusEl.classList.add('ok');
+    statusEl.textContent = '✅ 선생님께 결과가 저장되었습니다';
+  } catch (e) {
+    statusEl.classList.remove('pending');
+    statusEl.classList.add('fail');
+    statusEl.textContent = '⚠️ 저장에 실패했어요 (인터넷 연결을 확인해주세요). 점수는 위에 표시된 대로입니다.';
+  }
 });
 
 document.getElementById('retryBtn').addEventListener('click', () => {
