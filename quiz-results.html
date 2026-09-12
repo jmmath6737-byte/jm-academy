@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JM 학원 · 채점 결과 확인</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; background:#f4f6fb; margin:0; padding:0; color:#1a1a1a; }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 20px 16px 60px; }
+  .header { background:#1d4ed8; color:#fff; padding:18px 20px; border-radius:14px; margin-bottom:18px; }
+  .header h1 { font-size:20px; margin:0 0 4px; }
+  .header p { font-size:12.5px; margin:0; opacity:0.9; }
+  .toolbar { display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap; align-items:center; }
+  select, input[type=password] { padding:9px 12px; border-radius:8px; border:1px solid #ddd; font-size:13.5px; background:#fff; }
+  .btn { padding:9px 16px; background:#1d4ed8; color:#fff; border:none; border-radius:8px; font-size:13.5px; font-weight:700; cursor:pointer; }
+  .stat-row { display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; }
+  .stat { background:#fff; border-radius:10px; padding:12px 16px; box-shadow:0 1px 3px rgba(0,0,0,0.05); flex:1; min-width:120px; }
+  .stat .num { font-size:22px; font-weight:800; color:#1d4ed8; }
+  .stat .lbl { font-size:11.5px; color:#888; margin-top:2px; }
+  table { width:100%; border-collapse:collapse; background:#fff; border-radius:10px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.05); }
+  th, td { padding:10px 12px; text-align:left; font-size:13px; border-bottom:1px solid #f0f0f0; }
+  th { background:#f8f9fc; color:#666; font-weight:700; font-size:12px; }
+  tr:last-child td { border-bottom:none; }
+  .score-cell { font-weight:800; }
+  .score-good { color:#15803d; }
+  .score-mid { color:#d97706; }
+  .score-low { color:#dc2626; }
+  .empty { text-align:center; padding:40px; color:#999; font-size:13px; }
+  #gate { max-width:340px; margin:80px auto; background:#fff; padding:28px; border-radius:14px; box-shadow:0 2px 10px rgba(0,0,0,0.08); text-align:center; }
+  #gate h2 { font-size:16px; margin-bottom:14px; }
+  #gate input { width:100%; margin-bottom:10px; }
+  #gate button { width:100%; }
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <h2>🔒 선생님 확인 페이지</h2>
+  <input type="password" id="pw" placeholder="비밀번호">
+  <button class="btn" id="pwBtn">확인</button>
+  <div id="pwErr" style="color:#dc2626;font-size:12px;margin-top:8px;"></div>
+</div>
+
+<div class="wrap hidden" id="main" style="display:none;">
+  <div class="header">
+    <h1>중간고사 자동채점 · 제출 현황</h1>
+    <p>학생들이 QR로 제출한 채점 결과를 한눈에 확인합니다</p>
+  </div>
+
+  <div class="stat-row" id="statRow"></div>
+
+  <div class="toolbar">
+    <select id="examFilter"><option value="">전체 시험</option></select>
+    <button class="btn" id="refreshBtn">새로고침</button>
+  </div>
+
+  <table id="resultTable">
+    <thead>
+      <tr><th>제출시각</th><th>이름</th><th>시험</th><th>점수</th></tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://anrggoatoseukqigdbrt.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_oo60byvXjR5G-_9pMpm9xQ_6QsQbBks';
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const PASSWORD = 'jm2025'; // 원하시는 비밀번호로 바꿔서 쓰세요
+
+document.getElementById('pwBtn').addEventListener('click', () => {
+  if (document.getElementById('pw').value === PASSWORD) {
+    document.getElementById('gate').style.display = 'none';
+    document.getElementById('main').style.display = 'block';
+    load();
+  } else {
+    document.getElementById('pwErr').textContent = '비밀번호가 틀렸습니다';
+  }
+});
+document.getElementById('pw').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('pwBtn').click();
+});
+
+let allRows = [];
+
+function fmtTime(ts) {
+  const d = new Date(ts);
+  return d.toLocaleString('ko-KR', {month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'});
+}
+function scoreClass(score, total) {
+  const pct = score/total;
+  if (pct >= 0.8) return 'score-good';
+  if (pct >= 0.5) return 'score-mid';
+  return 'score-low';
+}
+
+async function load() {
+  const { data, error } = await supabaseClient
+    .from('quiz_submissions')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) {
+    document.getElementById('tbody').innerHTML = `<tr><td colspan="4" class="empty">불러오기 실패: ${error.message}</td></tr>`;
+    return;
+  }
+  allRows = data || [];
+  populateExamFilter();
+  render();
+}
+
+function populateExamFilter() {
+  const sel = document.getElementById('examFilter');
+  const seen = new Set();
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">전체 시험</option>';
+  allRows.forEach(r => {
+    const key = `${r.exam_year}__${r.exam_school}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      const opt = document.createElement('option');
+      opt.value = key;
+      opt.textContent = `${r.exam_year}학년도 2학기 - ${r.exam_school}`;
+      sel.appendChild(opt);
+    }
+  });
+  sel.value = cur;
+}
+
+function render() {
+  const filter = document.getElementById('examFilter').value;
+  const rows = filter
+    ? allRows.filter(r => `${r.exam_year}__${r.exam_school}` === filter)
+    : allRows;
+
+  const total = rows.length;
+  const avg = total ? (rows.reduce((s,r) => s + r.score/r.total, 0)/total*100).toFixed(0) : 0;
+  const students = new Set(rows.map(r => r.student_name)).size;
+  document.getElementById('statRow').innerHTML = `
+    <div class="stat"><div class="num">${total}</div><div class="lbl">제출 건수</div></div>
+    <div class="stat"><div class="num">${students}</div><div class="lbl">참여 학생 수</div></div>
+    <div class="stat"><div class="num">${avg}%</div><div class="lbl">평균 정답률</div></div>
+  `;
+
+  const tbody = document.getElementById('tbody');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="4" class="empty">아직 제출된 결과가 없습니다</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td>${fmtTime(r.created_at)}</td>
+      <td>${r.student_name}</td>
+      <td>${r.exam_year} - ${r.exam_school}</td>
+      <td class="score-cell ${scoreClass(r.score, r.total)}">${r.score} / ${r.total}</td>
+    </tr>
+  `).join('');
+}
+
+document.getElementById('examFilter').addEventListener('change', render);
+document.getElementById('refreshBtn').addEventListener('click', load);
+</script>
+</body>
+</html>
