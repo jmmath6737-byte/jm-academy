@@ -186,6 +186,12 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
   const exam = EXAMS[idx];
   const total = Object.keys(exam.answers).length;
   const answeredCount = Object.keys(currentAnswers).length;
+  const name = (document.getElementById('studentName').value || '').trim();
+  if (!name) {
+    alert('이름을 입력해야 채점할 수 있어요.');
+    document.getElementById('studentName').focus();
+    return;
+  }
   if (answeredCount < total) {
     const msg = document.getElementById('unansweredMsg');
     if (!msg.dataset.confirmed) {
@@ -194,7 +200,6 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
       return;
     }
   }
-  const name = (document.getElementById('studentName').value || '').trim() || '이름없음';
 
   let correct = 0;
   const rows = [];
@@ -203,7 +208,7 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
     const ans = exam.answers[q];
     const isCorrect = given === ans;
     if (isCorrect) correct++;
-    rows.push({q, given, ans, isCorrect});
+    rows.push({q, given, isCorrect});
   }
   document.getElementById('scoreBig').textContent = `${correct} / ${total}`;
   document.getElementById('scoreSub').textContent = `${name}님 · ${exam.year}학년도 2학기 - ${exam.school}`;
@@ -212,8 +217,7 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
     <div class="wrongrow ${r.isCorrect ? 'ok' : ''}">
       <span>${r.q}번</span>
       <span>내 답: ${r.given ? circ[r.given-1] : '미응답'}</span>
-      <span>정답: ${circ[r.ans-1]}</span>
-      <span>${r.isCorrect ? '✅' : '❌'}</span>
+      <span>${r.isCorrect ? '✅ 정답' : '❌ 오답'}</span>
     </div>`).join('');
 
   setupCard.classList.add('hidden');
