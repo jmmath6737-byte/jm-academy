@@ -1682,6 +1682,11 @@ button,select,input,textarea{font-family:inherit}
 </div>
 
 
+<div id="qz-bulk-bar" style="display:none;position:fixed;left:50%;transform:translateX(-50%);bottom:18px;z-index:9999;background:#141414;color:#fff;padding:12px 18px;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.28);align-items:center;gap:14px;font-size:13px">
+  <span id="qz-bulk-count">0건 선택됨</span>
+  <button class="btn btn-gold btn-sm" onclick="printQzBulkWrongNotes()">🖨 오답노트 일괄 인쇄</button>
+  <button class="btn btn-gray btn-sm" onclick="clearQzBulkSelect()">선택 해제</button>
+</div>
 <div id="_toast"></div>
 
 <script>
@@ -3387,6 +3392,27 @@ function refreshPage(page){
 // 자동채점 현황 (quiz_submissions)
 // ════════════════════════════════════════
 var quizResultsCache=[];
+// ── 오답노트 일괄 선택/인쇄 ──
+var QZ_BULK_SELECTED={};
+function toggleQzBulkSelect(id,row,checked){
+  if(checked)QZ_BULK_SELECTED[id]=row;else delete QZ_BULK_SELECTED[id];
+  renderQzBulkBar();
+}
+function renderQzBulkBar(){
+  var bar=document.getElementById('qz-bulk-bar');
+  if(!bar)return;
+  var n=Object.keys(QZ_BULK_SELECTED).length;
+  if(!n){bar.style.display='none';return;}
+  bar.style.display='flex';
+  document.getElementById('qz-bulk-count').textContent=n+'건 선택됨';
+}
+function clearQzBulkSelect(){
+  QZ_BULK_SELECTED={};
+  renderQzBulkBar();
+  if(document.getElementById('qr-list'))renderQuizResultsList();
+  var curSel=document.getElementById('report-stu-sel');
+  if(curSel&&curSel.value)loadReportQuizHistory(curSel.value);
+}
 async function loadQuizResults(){
   var listEl=document.getElementById('qr-list');
   if(!listEl)return;
@@ -3449,10 +3475,13 @@ function renderQuizResultsList(){
     var wrongHtml=(wrong&&wrong.length)?
       '<div style="margin-top:4px;font-size:11px;color:var(--red)">오답: '+wrong.map(function(n){return n+'번';}).join(', ')+'</div>' : '';
     return '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border)">'+
-      '<div>'+
-        '<div style="font-size:13.5px;font-weight:700;color:var(--t1)">'+esc(r.student_name)+'</div>'+
-        '<div style="font-size:11.5px;color:var(--t3);margin-top:2px">'+r.exam_year+'학년도 2학기 - '+esc(r.exam_school)+' · '+fmtQuizTime(r.created_at)+'</div>'+
-        wrongHtml+
+      '<div style="display:flex;align-items:flex-start;gap:10px">'+
+        (wrong&&wrong.length?'<input type="checkbox" class="qz-bulk-chk" style="width:18px;height:18px;margin-top:3px" '+(QZ_BULK_SELECTED[r.id]?'checked':'')+' onchange=\'toggleQzBulkSelect('+r.id+','+JSON.stringify(r).replace(/'/g,"&#39;")+',this.checked)\'>':'<span style="width:18px;display:inline-block"></span>')+
+        '<div>'+
+          '<div style="font-size:13.5px;font-weight:700;color:var(--t1)">'+esc(r.student_name)+'</div>'+
+          '<div style="font-size:11.5px;color:var(--t3);margin-top:2px">'+r.exam_year+'학년도 2학기 - '+esc(r.exam_school)+' · '+fmtQuizTime(r.created_at)+'</div>'+
+          wrongHtml+
+        '</div>'+
       '</div>'+
       '<div style="display:flex;align-items:center;gap:10px">'+
         '<div style="font-size:16px;font-weight:800;color:'+color+'">'+r.score+' / '+r.total+'</div>'+
@@ -3482,7 +3511,7 @@ function esc(s){
   return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});
 }
 var QUIZ_EXAMS=[{"year": 2022, "school": "동부중학교1", "total": 20, "subject": "수학", "grade": "중등1"}, {"year": 2023, "school": "산동중학교1", "total": 25, "subject": "수학", "grade": "중등1"}, {"year": 2023, "school": "옥계동부중1", "total": 25, "subject": "수학", "grade": "중등1"}, {"year": 2023, "school": "구미인덕중1", "total": 25, "subject": "수학", "grade": "중등1"}, {"year": 2023, "school": "해마루중학교1", "total": 25, "subject": "수학", "grade": "중등1"}, {"year": 2024, "school": "산동중1", "total": 25, "subject": "수학", "grade": "중등1"}, {"year": 2024, "school": "옥계동부중1", "total": 25, "subject": "수학", "grade": "중등1"}, {"year": 2024, "school": "인덕중학교1", "total": 25, "subject": "수학", "grade": "중등1"}, {"year": 2024, "school": "해마루중1", "total": 25, "subject": "수학", "grade": "중등1"}, {"year": 2025, "school": "산동중1", "total": 25, "subject": "수학", "grade": "중등1"}, {"year": 2025, "school": "인덕중1", "total": 25, "subject": "수학", "grade": "중등1"}, {"year": 2025, "school": "옥계동부중1", "total": 25, "subject": "수학", "grade": "중등1"}, {"year": 2025, "school": "해마루중1", "total": 25, "subject": "수학", "grade": "중등1"}];
-var QUIZ_ANSWER_KEYS=[{"year": 2022, "school": "동부중학교1", "answers": {"1": "5", "2": "3", "3": "4", "4": "2", "5": "4", "6": "1", "7": "2", "8": "1", "9": "3", "10": "5", "11": "2", "12": "4", "13": "2", "14": "4", "15": "4", "16": "3", "17": "1", "18": "1", "19": "5", "20": "3"}}, {"year": 2023, "school": "산동중학교1", "answers": {"1": "3", "2": "4", "3": "3", "4": "5", "5": "1", "6": "3", "7": "3", "8": "4", "9": "3", "10": "5", "11": "4", "12": "1", "13": "2", "14": "5", "15": "4", "16": "4", "17": "1", "18": "2", "19": "4", "20": "3", "21": "1", "22": "2", "23": "4", "24": "2", "25": "1"}}, {"year": 2023, "school": "옥계동부중1", "answers": {"1": "5", "2": "1", "3": "4", "4": "4", "5": "5", "6": "3", "7": "1", "8": "2", "9": "2", "10": "4", "11": "4", "12": "3", "13": "2", "14": "2", "15": "2", "16": "5", "17": "1", "18": "2", "19": "5", "20": "3", "21": "1", "22": "1", "23": "5", "24": "2", "25": "3"}}, {"year": 2023, "school": "구미인덕중1", "answers": {"1": "3", "2": "2", "3": "3", "4": "3", "5": "5", "6": "1", "7": "5", "8": "4", "9": "2", "10": "4", "11": "5", "12": "1", "13": "3", "14": "5", "15": "4", "16": "2", "17": "1", "18": "4", "19": "4", "20": "2", "21": "5", "22": "3", "23": "1", "24": "4", "25": "5"}}, {"year": 2023, "school": "해마루중학교1", "answers": {"1": "2", "2": "5", "3": "1", "4": "1", "5": "3", "6": "3", "7": "4", "8": "5", "9": "4", "10": "3", "11": "4", "12": "4", "13": "2", "14": "3", "15": "4", "16": "5", "17": "5", "18": "1", "19": "1", "20": "2", "21": "4", "22": "4", "23": "3", "24": "5", "25": "3"}}, {"year": 2024, "school": "산동중1", "answers": {"1": "4", "2": "5", "3": "1", "4": "2", "5": "3", "6": "4", "7": "3", "8": "5", "9": "4", "10": "5", "11": "3", "12": "1", "13": "5", "14": "4", "15": "2", "16": "3", "17": "2", "18": "5", "19": "1", "20": "2", "21": "3", "22": "1", "23": "5", "24": "1", "25": "2"}}, {"year": 2024, "school": "옥계동부중1", "answers": {"1": "4", "2": "1", "3": "5", "4": "3", "5": "3", "6": "2", "7": "1", "8": "5", "9": "5", "10": "3", "11": "4", "12": "1", "13": "4", "14": "5", "15": "2", "16": "2", "17": "4", "18": "1", "19": "5", "20": "4", "21": "2", "22": "3", "23": "5", "24": "2", "25": "3"}}, {"year": 2024, "school": "인덕중학교1", "answers": {"1": "5", "2": "4", "3": "2", "4": "4", "5": "2", "6": "4", "7": "5", "8": "1", "9": "1", "10": "3", "11": "2", "12": "5", "13": "2", "14": "1", "15": "5", "16": "3", "17": "2", "18": "1", "19": "5", "20": "1", "21": "3", "22": "4", "23": "3", "24": "5", "25": "4"}}, {"year": 2024, "school": "해마루중1", "answers": {"1": "4", "2": "3", "3": "2", "4": "1", "5": "2", "6": "3", "7": "4", "8": "1", "9": "5", "10": "2", "11": "4", "12": "4", "13": "1", "14": "5", "15": "5", "16": "2", "17": "2", "18": "4", "19": "1", "20": "3", "21": "2", "22": "4", "23": "5", "24": "1", "25": "3"}}, {"year": 2025, "school": "산동중1", "answers": {"1": "2", "2": "1", "3": "5", "4": "2", "5": "3", "6": "2", "7": "1", "8": "5", "9": "4", "10": "2", "11": "2", "12": "3", "13": "5", "14": "1", "15": "4", "16": "1", "17": "3", "18": "4", "19": "5", "20": "3", "21": "3", "22": "1", "23": "4", "24": "1", "25": "3"}}, {"year": 2025, "school": "인덕중1", "answers": {"1": "4", "2": "5", "3": "4", "4": "3", "5": "1", "6": "5", "7": "2", "8": "5", "9": "4", "10": "2", "11": "3", "12": "1", "13": "3", "14": "1", "15": "3", "16": "2", "17": "2", "18": "5", "19": "4", "20": "2", "21": "3", "22": "2", "23": "5", "24": "1", "25": "3"}}, {"year": 2025, "school": "옥계동부중1", "answers": {"1": "1", "2": "1", "3": "3", "4": "5", "5": "2", "6": "4", "7": "5", "8": "3", "9": "4", "10": "3", "11": "4", "12": "1", "13": "2", "14": "5", "15": "3", "16": "5", "17": "4", "18": "1", "19": "2", "20": "5", "21": "2", "22": "5", "23": "4", "24": "3", "25": "1"}}, {"year": 2025, "school": "해마루중1", "answers": {"1": "5", "2": "1", "3": "2", "4": "4", "5": "3", "6": "3", "7": "5", "8": "1", "9": "1", "10": "2", "11": "3", "12": "4", "13": "1", "14": "5", "15": "2", "16": "2", "17": "4", "18": "5", "19": "5", "20": "2", "21": "3", "22": "1", "23": "3", "24": "5", "25": "4"}}];
+var QUIZ_ANSWER_KEYS=[{"year": 2022, "school": "동부중학교1", "answers": {"1": "5", "2": "3", "3": "4", "4": "2", "5": "4", "6": "1", "7": "2", "8": "1", "9": "3", "10": "5", "11": "2", "12": "4", "13": "2", "14": "4", "15": "4", "16": "3", "17": "1", "18": "1", "19": "5", "20": "3"}}, {"year": 2023, "school": "산동중학교1", "answers": {"1": "3", "2": "4", "3": "3", "4": "5", "5": "1", "6": "3", "7": "3", "8": "4", "9": "3", "10": "5", "11": "4", "12": "1", "13": "2", "14": "5", "15": "4", "16": "2", "17": "1", "18": "2", "19": "5", "20": "3", "21": "1", "22": "2", "23": "4", "24": "2", "25": "1"}}, {"year": 2023, "school": "옥계동부중1", "answers": {"1": "5", "2": "1", "3": "4", "4": "4", "5": "5", "6": "3", "7": "1", "8": "2", "9": "2", "10": "4", "11": "4", "12": "3", "13": "2", "14": "2", "15": "2", "16": "5", "17": "1", "18": "2", "19": "5", "20": "3", "21": "1", "22": "1", "23": "5", "24": "2", "25": "3"}}, {"year": 2023, "school": "구미인덕중1", "answers": {"1": "3", "2": "2", "3": "3", "4": "3", "5": "5", "6": "1", "7": "5", "8": "4", "9": "2", "10": "4", "11": "5", "12": "1", "13": "3", "14": "5", "15": "4", "16": "2", "17": "1", "18": "4", "19": "4", "20": "2", "21": "5", "22": "3", "23": "1", "24": "4", "25": "5"}}, {"year": 2023, "school": "해마루중학교1", "answers": {"1": "2", "2": "5", "3": "1", "4": "1", "5": "3", "6": "3", "7": "4", "8": "5", "9": "4", "10": "3", "11": "4", "12": "4", "13": "2", "14": "3", "15": "4", "16": "5", "17": "5", "18": "1", "19": "1", "20": "2", "21": "4", "22": "4", "23": "3", "24": "5", "25": "3"}}, {"year": 2024, "school": "산동중1", "answers": {"1": "4", "2": "5", "3": "1", "4": "2", "5": "3", "6": "4", "7": "3", "8": "5", "9": "4", "10": "5", "11": "3", "12": "1", "13": "5", "14": "4", "15": "2", "16": "3", "17": "2", "18": "5", "19": "1", "20": "2", "21": "3", "22": "1", "23": "5", "24": "1", "25": "2"}}, {"year": 2024, "school": "옥계동부중1", "answers": {"1": "4", "2": "1", "3": "5", "4": "3", "5": "3", "6": "2", "7": "1", "8": "5", "9": "5", "10": "3", "11": "4", "12": "1", "13": "4", "14": "5", "15": "2", "16": "2", "17": "4", "18": "1", "19": "5", "20": "4", "21": "2", "22": "3", "23": "5", "24": "2", "25": "3"}}, {"year": 2024, "school": "인덕중학교1", "answers": {"1": "5", "2": "4", "3": "2", "4": "4", "5": "2", "6": "4", "7": "5", "8": "1", "9": "1", "10": "3", "11": "2", "12": "5", "13": "2", "14": "1", "15": "5", "16": "3", "17": "2", "18": "1", "19": "5", "20": "1", "21": "3", "22": "4", "23": "3", "24": "5", "25": "4"}}, {"year": 2024, "school": "해마루중1", "answers": {"1": "4", "2": "3", "3": "2", "4": "1", "5": "2", "6": "3", "7": "4", "8": "1", "9": "5", "10": "2", "11": "4", "12": "4", "13": "1", "14": "5", "15": "5", "16": "2", "17": "2", "18": "4", "19": "1", "20": "3", "21": "2", "22": "4", "23": "5", "24": "1", "25": "3"}}, {"year": 2025, "school": "산동중1", "answers": {"1": "2", "2": "1", "3": "5", "4": "2", "5": "3", "6": "2", "7": "1", "8": "5", "9": "4", "10": "2", "11": "2", "12": "3", "13": "5", "14": "1", "15": "4", "16": "1", "17": "3", "18": "4", "19": "5", "20": "3", "21": "3", "22": "1", "23": "4", "24": "1", "25": "3"}}, {"year": 2025, "school": "인덕중1", "answers": {"1": "4", "2": "5", "3": "4", "4": "3", "5": "1", "6": "5", "7": "2", "8": "5", "9": "4", "10": "2", "11": "3", "12": "1", "13": "3", "14": "1", "15": "3", "16": "2", "17": "2", "18": "5", "19": "4", "20": "2", "21": "3", "22": "2", "23": "5", "24": "1", "25": "3"}}, {"year": 2025, "school": "옥계동부중1", "answers": {"1": "1", "2": "1", "3": "3", "4": "5", "5": "2", "6": "4", "7": "5", "8": "3", "9": "4", "10": "3", "11": "4", "12": "1", "13": "2", "14": "5", "15": "3", "16": "5", "17": "4", "18": "1", "19": "2", "20": "5", "21": "2", "22": "5", "23": "4", "24": "3", "25": "1"}}, {"year": 2025, "school": "해마루중1", "answers": {"1": "5", "2": "1", "3": "2", "4": "4", "5": "3", "6": "3", "7": "5", "8": "1", "9": "1", "10": "2", "11": "3", "12": "4", "13": "1", "14": "5", "15": "2", "16": "2", "17": "4", "18": "5", "19": "5", "20": "2", "21": "3", "22": "1", "23": "3", "24": "5", "25": "4"}}];
 var QUIZ_PAGE_QMAP={"2022_동부중학교1": [[1, 2, 3, 4, 5], [6, 7, 8, 9, 10, 11], [12, 13, 14, 15, 16, 17], [18, 19, 20]], "2023_산동중학교1": [[1, 2, 3, 4, 5, 6], [7, 8, 9, 10, 11, 12], [13, 14, 15, 16, 17, 18], [19, 20, 21, 22, 23, 24, 25]], "2023_옥계동부중1": [[1, 2, 3, 4, 5, 6, 7], [8, 9, 10, 11], [12, 13, 14, 15, 16], [17, 18, 19, 20, 21], [22, 23, 24, 25]], "2023_구미인덕중1": [[1, 2, 3, 4, 5, 6], [7, 8, 9, 10, 11, 12], [13, 14, 15, 16], [17, 18, 19, 20], [21, 22, 23, 24, 25]], "2023_해마루중학교1": [[1, 2, 3, 4, 5, 6], [7, 8, 9, 10, 11, 12], [13, 14, 15, 16, 17], [18, 19, 20, 21, 22], [23, 24, 25]], "2024_산동중1": [[1, 2, 3, 4, 5, 6], [7, 8, 9, 10], [11, 12, 13, 14, 15, 16], [17, 18, 19, 20, 21], [22, 23, 24, 25]], "2024_옥계동부중1": [[1, 2, 3, 4, 5, 6], [7, 8, 9, 10, 11, 12], [13, 14, 15, 16, 17], [18, 19, 20, 21, 22], [23, 24, 25]], "2024_인덕중학교1": [[1, 2, 3, 4], [5, 6, 7, 8, 9], [10, 11, 12, 13, 14, 15], [16, 17, 18, 19, 20, 21], [22, 23, 24, 25]], "2024_해마루중1": [[1, 2, 3, 4, 5], [6, 7], [8, 9, 10, 11], [12, 13, 14], [15, 16, 17, 18], [19, 20, 21, 22], [23, 24, 25]], "2025_산동중1": [[1, 2, 3, 4], [5, 6, 7, 8, 9], [10, 11, 12, 13, 14, 15], [16, 17, 18, 19, 20, 21], [22, 23, 24, 25]], "2025_인덕중1": [[1, 2, 3, 4], [5, 6, 7, 8, 9, 10], [11, 12, 13, 14, 15, 16], [17, 18, 19, 20, 21, 22], [23, 24, 25]], "2025_옥계동부중1": [[1, 2, 3, 4, 5, 6], [7, 8, 9], [10, 11, 12, 13, 14], [15, 16, 17, 18, 19], [20, 21, 22, 23, 24, 25]], "2025_해마루중1": [[1, 2, 3, 4, 5], [6, 7, 8, 9, 10, 11], [12, 13, 14, 15, 16, 17], [18, 19, 20, 21, 22], [23, 24, 25]]};
 var QUIZ_EXAM_SLUG={"2022_동부중학교1": "dongbu2022", "2023_산동중학교1": "sandong2023", "2023_옥계동부중1": "okgyedongbu2023", "2023_구미인덕중1": "gumiinduk2023", "2023_해마루중학교1": "haemaru2023", "2024_산동중1": "sandong2024", "2024_옥계동부중1": "okgyedongbu2024", "2024_인덕중학교1": "induk2024", "2024_해마루중1": "haemaru2024", "2025_산동중1": "sandong2025", "2025_인덕중1": "induk2025", "2025_옥계동부중1": "okgyedongbu2025", "2025_해마루중1": "haemaru2025"};
 var QZ_GRADE_ORDER=['초등1','초등2','초등3','초등4','초등5','초등6','중등1','중등2','중등3','고등1','고등2','고등3'];
@@ -3748,6 +3777,101 @@ async function downloadWrongNotePDF(row){
       doc.addImage(img,'JPEG',0,0,W,h);
     }
     doc.save('오답노트_'+row.student_name+'_'+row.exam_year+row.exam_school+'.pdf');
+  }catch(e){
+    toast('오답노트 생성 실패: '+(e.message||e)+' (examimg 폴더 업로드를 확인해주세요)');
+  }
+}
+// 오답노트 일괄(여러 건) PDF - 첫 페이지(들)에 전체 목록을 모아서 보여준 뒤, 필요한 문제 페이지가 이어짐
+function buildBulkCoverCanvases(items){
+  var SCALE=2.084;
+  var W=Math.round(595*SCALE), H=Math.round(841*SCALE);
+  var FONT='"Malgun Gothic","Apple SD Gothic Neo",sans-serif';
+  var pages=[];var cv,ctx;
+  function newPage(){
+    cv=document.createElement('canvas');cv.width=W;cv.height=H;
+    ctx=cv.getContext('2d');
+    ctx.fillStyle='#ffffff';ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='#1d4ed8';ctx.fillRect(0,0,W,150);
+    ctx.fillStyle='#ffffff';
+    ctx.font='bold 22px '+FONT;
+    ctx.fillText('JM 수학영어 · 리드인학원',88,60);
+    ctx.font='bold 36px '+FONT;
+    ctx.fillText('오답노트 모음 (총 '+items.length+'건)',88,113);
+    pages.push(cv);
+    return 210;
+  }
+  var y=newPage();
+  var maxW=W-198;
+  items.forEach(function(it,idx){
+    var r=it.row,wrong=it.wrong;
+    var title=(idx+1)+'. '+r.student_name+' · '+r.exam_year+'학년도 2학기 - '+r.exam_school;
+    ctx.font='bold 29px '+FONT;
+    var chipText=wrong.map(function(n){return n+'번';});
+    var lines=[];var cur='';
+    chipText.forEach(function(s){
+      var test=cur?cur+'   '+s:s;
+      if(ctx.measureText(test).width>maxW && cur){lines.push(cur);cur=s;}
+      else cur=test;
+    });
+    if(cur)lines.push(cur);
+    var blockH=48+lines.length*40+34;
+    if(y+blockH>H-70)y=newPage();
+    ctx.fillStyle='#141414';
+    ctx.font='bold 25px '+FONT;
+    ctx.fillText(title,88,y);
+    ctx.fillStyle='#dc2626';
+    ctx.font='bold 29px '+FONT;
+    var ly=y+40;
+    lines.forEach(function(l){ctx.fillText(l,110,ly);ly+=40;});
+    ctx.strokeStyle='#e5e5e5';ctx.beginPath();ctx.moveTo(88,ly+6);ctx.lineTo(W-88,ly+6);ctx.stroke();
+    y=ly+38;
+  });
+  return pages;
+}
+async function printQzBulkWrongNotes(){
+  var rows=Object.keys(QZ_BULK_SELECTED).map(function(k){return QZ_BULK_SELECTED[k];});
+  if(!rows.length){toast('선택된 항목이 없어요');return;}
+  var items=[];
+  rows.forEach(function(r){
+    var wrong=getWrongNums(r);
+    if(wrong&&wrong.length)items.push({row:r,wrong:wrong});
+  });
+  if(!items.length){toast('선택한 항목 중 오답노트를 만들 수 있는 건이 없어요');return;}
+  toast('오답노트 '+items.length+'건 모아서 만드는 중...');
+  try{
+    var jsPDFCtor=window.jspdf.jsPDF;
+    var doc=new jsPDFCtor({unit:'pt',format:'a4'});
+    var W=doc.internal.pageSize.getWidth();
+    var covers=buildBulkCoverCanvases(items);
+    covers.forEach(function(cv,i){
+      if(i>0)doc.addPage();
+      var data=cv.toDataURL('image/jpeg',0.92);
+      var h=W*(cv.height/cv.width);
+      doc.addImage(data,'JPEG',0,0,W,h);
+    });
+    var seenUrls={};
+    for(var i=0;i<items.length;i++){
+      var row=items[i].row, wrong=items[i].wrong;
+      var key=row.exam_year+'_'+row.exam_school;
+      var qmap=QUIZ_PAGE_QMAP[key];
+      if(!qmap)continue;
+      var wrongSet={};wrong.forEach(function(n){wrongSet[n]=true;});
+      var neededIdx=[];
+      qmap.forEach(function(nums,idx){if(nums.some(function(n){return wrongSet[n];}))neededIdx.push(idx+1);});
+      var slug=QUIZ_EXAM_SLUG[key]||key;
+      for(var j=0;j<neededIdx.length;j++){
+        var url='examimg/'+slug+'_p'+neededIdx[j]+'.jpg';
+        if(seenUrls[url])continue;
+        seenUrls[url]=true;
+        var img=await quizLoadImage(url);
+        doc.addPage();
+        var h2=W*(img.height/img.width);
+        doc.addImage(img,'JPEG',0,0,W,h2);
+      }
+    }
+    doc.save('오답노트_모음_'+items.length+'건.pdf');
+    toast('오답노트 '+items.length+'건 생성 완료');
+    clearQzBulkSelect();
   }catch(e){
     toast('오답노트 생성 실패: '+(e.message||e)+' (examimg 폴더 업로드를 확인해주세요)');
   }
@@ -6233,10 +6357,13 @@ async function loadReportQuizHistory(name){
       var wrong=getWrongNums(r);
       var wrongHtml=(wrong&&wrong.length)?'<div style="font-size:11px;color:var(--red);margin-top:2px">오답: '+wrong.map(function(n){return n+'번';}).join(', ')+'</div>':'';
       return '<div style="padding:8px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start">'+
+        '<div style="display:flex;align-items:flex-start;gap:8px">'+
+        (wrong&&wrong.length?'<input type="checkbox" class="qz-bulk-chk" style="width:17px;height:17px;margin-top:3px" '+(QZ_BULK_SELECTED[r.id]?'checked':'')+' onchange=\'toggleQzBulkSelect('+r.id+','+JSON.stringify(r).replace(/'/g,"&#39;")+',this.checked)\'>':'<span style="width:17px;display:inline-block"></span>')+
         '<div>'+
           '<div style="font-size:13px;font-weight:600">'+r.exam_year+'학년도 2학기 - '+esc(r.exam_school)+'</div>'+
           '<div style="font-size:11px;color:var(--t3)">'+fmtQuizTime(r.created_at)+'</div>'+
           wrongHtml+
+        '</div>'+
         '</div>'+
         '<div style="text-align:right">'+
           '<div style="font-size:15px;font-weight:800;color:'+color+'">'+r.score+' / '+r.total+'</div>'+
