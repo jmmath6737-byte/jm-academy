@@ -998,6 +998,9 @@ button,select,input,textarea{font-family:inherit}
       <div class="card-head">
         <span class="card-title">📋 제출 결과 목록</span>
         <div style="display:flex;gap:6px;align-items:center">
+          <select class="form-input" id="qr-subject-filter" style="min-width:110px;font-size:13px" onchange="fillQuizExamFilter();renderQuizResultsList()">
+            <option value="">전체 과목</option>
+          </select>
           <select class="form-input" id="qr-exam-filter" style="min-width:200px;font-size:13px" onchange="renderQuizResultsList()">
             <option value="">전체 시험</option>
           </select>
@@ -3422,19 +3425,38 @@ async function loadQuizResults(){
     var res=await supabaseClient.from('quiz_submissions').select('*').order('created_at',{ascending:false});
     if(res.error)throw res.error;
     quizResultsCache=res.data||[];
+    fillQuizSubjectFilter();
     fillQuizExamFilter();
     renderQuizResultsList();
   }catch(e){
     listEl.innerHTML='<div style="padding:40px;text-align:center;color:var(--red);font-size:13px">불러오기 실패: '+(e.message||e)+'</div>';
   }
 }
+function quizExamSubject(year,school){
+  var meta=QUIZ_EXAMS.find(function(e){return e.year===year&&e.school===school;});
+  return meta?meta.subject:'';
+}
+function fillQuizSubjectFilter(){
+  var sel=document.getElementById('qr-subject-filter');
+  if(!sel)return;
+  var cur=sel.value;
+  var subs=[];
+  quizResultsCache.forEach(function(r){
+    var s=quizExamSubject(r.exam_year,r.exam_school);
+    if(s&&subs.indexOf(s)===-1)subs.push(s);
+  });
+  sel.innerHTML='<option value="">전체 과목</option>'+subs.map(function(s){return '<option value="'+s+'"'+(s===cur?' selected':'')+'>'+s+'</option>';}).join('');
+  sel.value=cur;
+}
 function fillQuizExamFilter(){
   var sel=document.getElementById('qr-exam-filter');
   if(!sel)return;
   var cur=sel.value;
+  var subjectFilter=(document.getElementById('qr-subject-filter')||{}).value||'';
   var seen={};
   var opts=['<option value="">전체 시험</option>'];
   quizResultsCache.forEach(function(r){
+    if(subjectFilter&&quizExamSubject(r.exam_year,r.exam_school)!==subjectFilter)return;
     var key=r.exam_year+'__'+r.exam_school;
     if(!seen[key]){
       seen[key]=true;
@@ -3443,13 +3465,16 @@ function fillQuizExamFilter(){
   });
   sel.innerHTML=opts.join('');
   sel.value=cur;
+  if(sel.value!==cur)sel.value='';
 }
 function renderQuizResultsList(){
   var listEl=document.getElementById('qr-list');
   if(!listEl)return;
+  var subjectFilter=(document.getElementById('qr-subject-filter')||{}).value||'';
   var examFilter=(document.getElementById('qr-exam-filter')||{}).value||'';
   var nameFilter=((document.getElementById('qr-name-filter')||{}).value||'').trim();
   var rows=quizResultsCache.filter(function(r){
+    if(subjectFilter&&quizExamSubject(r.exam_year,r.exam_school)!==subjectFilter)return false;
     if(examFilter&&(r.exam_year+'__'+r.exam_school)!==examFilter)return false;
     if(nameFilter&&!(r.student_name||'').includes(nameFilter))return false;
     return true;
@@ -3807,6 +3832,7 @@ function buildBulkCoverCanvases(items){
   var FONT='"Malgun Gothic","Apple SD Gothic Neo",sans-serif';
   var qrSize=124;
   var qrAreaW=qrSize+46;
+  var sameName=(items.length&&items.every(function(it){return it.row.student_name===items[0].row.student_name;}))?items[0].row.student_name:null;
   var pages=[];var cv,ctx;
   function newPage(){
     cv=document.createElement('canvas');cv.width=W;cv.height=H;
@@ -3819,13 +3845,25 @@ function buildBulkCoverCanvases(items){
     ctx.font='bold 36px '+FONT;
     ctx.fillText('오답노트 모음 (총 '+items.length+'건)',88,113);
     pages.push(cv);
-    return 210;
+    var startY=210;
+    if(sameName){
+      var boxY=178,boxH=76;
+      ctx.fillStyle='#1d4ed8';
+      ctx.fillRect(88,boxY,W-176,boxH);
+      ctx.fillStyle='#ffffff';
+      ctx.font='bold 34px '+FONT;
+      ctx.textAlign='center';
+      ctx.fillText(sameName+' 학생',W/2,boxY+boxH/2+12);
+      ctx.textAlign='left';
+      startY=boxY+boxH+56;
+    }
+    return startY;
   }
   var y=newPage();
   var maxW=W-176-qrAreaW;
   items.forEach(function(it,idx){
     var r=it.row,wrong=it.wrong;
-    var title=(idx+1)+'. '+r.student_name+' · '+r.exam_year+'학년도 2학기 - '+r.exam_school;
+    var title=(idx+1)+'. '+(sameName?'':(r.student_name+' · '))+r.exam_year+'학년도 2학기 - '+r.exam_school;
     ctx.font='bold 29px '+FONT;
     var chipText=wrong.map(function(n){return n+'번';});
     var lines=[];var cur='';
