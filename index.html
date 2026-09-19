@@ -3688,6 +3688,23 @@ function buildRetryQuizUrl(row,wrong){
   p.set('q',wrong.join(','));
   return QUIZ_APP_BASE+'?'+p.toString();
 }
+// 문제지 이미지 위에 "연도학년도 2학기 - 학교명" 머리말 배너를 붙여서 반환
+function buildExamPageCanvasWithHeader(img,headerText){
+  var barH=Math.round(img.width*0.05);
+  var cv=document.createElement('canvas');
+  cv.width=img.width;cv.height=img.height+barH;
+  var ctx=cv.getContext('2d');
+  ctx.fillStyle='#ffffff';ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.fillStyle='#1d4ed8';
+  ctx.fillRect(0,0,cv.width,barH);
+  ctx.fillStyle='#ffffff';
+  ctx.font='bold '+Math.round(barH*0.46)+'px "Malgun Gothic","Apple SD Gothic Neo",sans-serif';
+  ctx.textBaseline='middle';
+  ctx.fillText(headerText,Math.round(img.width*0.028),Math.round(barH/2)+1);
+  ctx.textBaseline='alphabetic';
+  ctx.drawImage(img,0,barH);
+  return cv;
+}
 function buildWrongNoteCoverCanvas(row,wrong){
   var SCALE=2.084;
   var W=Math.round(595*SCALE), H=Math.round(841*SCALE);
@@ -3772,9 +3789,10 @@ async function downloadWrongNotePDF(row){
       var slug=QUIZ_EXAM_SLUG[key]||key;
       var url='examimg/'+slug+'_p'+idx+'.jpg';
       var img=await quizLoadImage(url);
+      var pageCv=buildExamPageCanvasWithHeader(img,row.exam_year+'학년도 2학기 - '+row.exam_school);
       doc.addPage();
-      var h=W*(img.height/img.width);
-      doc.addImage(img,'JPEG',0,0,W,h);
+      var h=W*(pageCv.height/pageCv.width);
+      doc.addImage(pageCv.toDataURL('image/jpeg',0.92),'JPEG',0,0,W,h);
     }
     doc.save('오답노트_'+row.student_name+'_'+row.exam_year+row.exam_school+'.pdf');
   }catch(e){
@@ -3786,6 +3804,8 @@ function buildBulkCoverCanvases(items){
   var SCALE=2.084;
   var W=Math.round(595*SCALE), H=Math.round(841*SCALE);
   var FONT='"Malgun Gothic","Apple SD Gothic Neo",sans-serif';
+  var qrSize=124;
+  var qrAreaW=qrSize+46;
   var pages=[];var cv,ctx;
   function newPage(){
     cv=document.createElement('canvas');cv.width=W;cv.height=H;
@@ -3801,7 +3821,7 @@ function buildBulkCoverCanvases(items){
     return 210;
   }
   var y=newPage();
-  var maxW=W-198;
+  var maxW=W-176-qrAreaW;
   items.forEach(function(it,idx){
     var r=it.row,wrong=it.wrong;
     var title=(idx+1)+'. '+r.student_name+' · '+r.exam_year+'학년도 2학기 - '+r.exam_school;
@@ -3814,7 +3834,8 @@ function buildBulkCoverCanvases(items){
       else cur=test;
     });
     if(cur)lines.push(cur);
-    var blockH=48+lines.length*40+34;
+    var textBlockH=48+lines.length*40;
+    var blockH=Math.max(textBlockH,qrSize+56)+34;
     if(y+blockH>H-70)y=newPage();
     ctx.fillStyle='#141414';
     ctx.font='bold 25px '+FONT;
@@ -3823,8 +3844,19 @@ function buildBulkCoverCanvases(items){
     ctx.font='bold 29px '+FONT;
     var ly=y+40;
     lines.forEach(function(l){ctx.fillText(l,110,ly);ly+=40;});
-    ctx.strokeStyle='#e5e5e5';ctx.beginPath();ctx.moveTo(88,ly+6);ctx.lineTo(W-88,ly+6);ctx.stroke();
-    y=ly+38;
+    // 개별 다시풀기 QR (스캔하면 이 학생·이 시험의 오답만 다시 풀 수 있음)
+    var qr=new QRious({value:buildRetryQuizUrl(r,wrong),size:qrSize,background:'#ffffff',foreground:'#1d4ed8',level:'M'});
+    var qrX=W-88-qrSize;
+    var qrY=y-34;
+    ctx.drawImage(qr.canvas,qrX,qrY,qrSize,qrSize);
+    ctx.fillStyle='#1d4ed8';
+    ctx.font='bold 13px '+FONT;
+    ctx.textAlign='center';
+    ctx.fillText('QR 스캔 → 다시풀기',qrX+qrSize/2,qrY+qrSize+20);
+    ctx.textAlign='left';
+    var bottomOfBlock=Math.max(ly,qrY+qrSize+34);
+    ctx.strokeStyle='#e5e5e5';ctx.beginPath();ctx.moveTo(88,bottomOfBlock+6);ctx.lineTo(W-88,bottomOfBlock+6);ctx.stroke();
+    y=bottomOfBlock+38;
   });
   return pages;
 }
@@ -3859,14 +3891,16 @@ async function printQzBulkWrongNotes(){
       var neededIdx=[];
       qmap.forEach(function(nums,idx){if(nums.some(function(n){return wrongSet[n];}))neededIdx.push(idx+1);});
       var slug=QUIZ_EXAM_SLUG[key]||key;
+      var headerText=row.exam_year+'학년도 2학기 - '+row.exam_school;
       for(var j=0;j<neededIdx.length;j++){
         var url='examimg/'+slug+'_p'+neededIdx[j]+'.jpg';
         if(seenUrls[url])continue;
         seenUrls[url]=true;
         var img=await quizLoadImage(url);
+        var pageCv=buildExamPageCanvasWithHeader(img,headerText);
         doc.addPage();
-        var h2=W*(img.height/img.width);
-        doc.addImage(img,'JPEG',0,0,W,h2);
+        var h2=W*(pageCv.height/pageCv.width);
+        doc.addImage(pageCv.toDataURL('image/jpeg',0.92),'JPEG',0,0,W,h2);
       }
     }
     doc.save('오답노트_모음_'+items.length+'건.pdf');
