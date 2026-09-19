@@ -3843,20 +3843,10 @@ function buildBulkCoverCanvases(items){
     ctx.font='bold 22px '+FONT;
     ctx.fillText('JM 수학영어 · 리드인학원',88,60);
     ctx.font='bold 36px '+FONT;
-    ctx.fillText('오답노트 모음 (총 '+items.length+'건)',88,113);
+    var titleLine='오답노트 모음 (총 '+items.length+'건)'+(sameName?'   ·   이름: '+sameName:'');
+    ctx.fillText(titleLine,88,113);
     pages.push(cv);
     var startY=210;
-    if(sameName){
-      var boxY=178,boxH=76;
-      ctx.fillStyle='#1d4ed8';
-      ctx.fillRect(88,boxY,W-176,boxH);
-      ctx.fillStyle='#ffffff';
-      ctx.font='bold 34px '+FONT;
-      ctx.textAlign='center';
-      ctx.fillText(sameName+' 학생',W/2,boxY+boxH/2+12);
-      ctx.textAlign='left';
-      startY=boxY+boxH+56;
-    }
     return startY;
   }
   var y=newPage();
