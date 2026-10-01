@@ -2794,34 +2794,12 @@ function load(){
           // 정확한 최신 시간표(구글시트 기준, 5:30 시간대 포함)로 전체 갱신
           // 사용자가 나중에 직접 추가한 5번째+ 과목(예: 류현지)이 있다면 그대로 보존함
           if(!p.scheduleV2Import){
-            var oldSched=p.schedule;
-            var newSched=JSON.parse(JSON.stringify(DEFAULT_SCHEDULE));
-            Object.keys(newSched).forEach(function(dk){
-              var oldDay=oldSched&&oldSched[dk];
-              if(!oldDay||!oldDay.cols)return;
-              var extraCols=[];
-              for(var i=4;i<oldDay.cols.length;i++){if(oldDay.cols[i])extraCols.push({name:oldDay.cols[i],oldCi:i});}
-              if(!extraCols.length)return;
-              var newDay=newSched[dk];
-              extraCols.forEach(function(ec){newDay.cols.push(ec.name);});
-              newDay.rows.forEach(function(r){while(r.cells.length<newDay.cols.length)r.cells.push([]);});
-              extraCols.forEach(function(ec,idx){
-                var newCi=4+idx;
-                (oldDay.rows||[]).forEach(function(oldRow){
-                  var stu=oldRow.cells&&oldRow.cells[ec.oldCi];
-                  if(!stu||!stu.length)return;
-                  var newRow=newDay.rows.find(function(r){return r.t===oldRow.t;});
-                  if(!newRow){
-                    newRow={t:oldRow.t,cells:newDay.cols.map(function(){return [];})};
-                    newDay.rows.push(newRow);
-                    newDay.rows.sort(function(a,b){return a.t.localeCompare(b.t,undefined,{numeric:true});});
-                  }
-                  while(newRow.cells.length<newDay.cols.length)newRow.cells.push([]);
-                  newRow.cells[newCi]=stu.slice();
-                });
-              });
-            });
-            p.schedule=newSched;
+            // (안전 수정) 예전엔 여기서 p.schedule을 DEFAULT_SCHEDULE(코드에 박제된 옛날 스냅샷 —
+            // 영어 강민정·수학 류현지가 아직 남아있는 구버전 데이터)로 통째로 덮어쓰는 1회성 마이그레이션이
+            // 있었음. 이미 모든 실사용 데이터가 이 마이그레이션을 거친 지 오래라 더 이상 필요하지 않고,
+            // 오히려 오래된 캐시를 가진 기기가 다시 로드될 때 실제 최신 수업표를 구버전 기본값으로
+            // 덮어써버리는 사고(실데이터 손상)를 일으킬 수 있어 완전히 비활성화함.
+            // 플래그만 세워서 다시 평가되지 않게 하고, 실제 schedule 데이터는 절대 건드리지 않는다.
             p.scheduleV2Import=true;
           }
           if(!p.tombstones)p.tombstones=[];
@@ -2855,89 +2833,16 @@ function load(){
           var defCols=['수학 이지혜','수학 장영은','영어 김윤진','국어 박종희'];
           if(!p.schedule.sat)p.schedule.sat={cols:defCols.slice(),rows:[]};
           if(!p.schedule.sun)p.schedule.sun={cols:defCols.slice(),rows:[]};
-          // 컬럼 순서 마이그레이션: 수학 장영은(원장)을 마지막으로 이동
-          // old 0(수1) 1(수2) 2(영) 3(국) → new 0(수1) 1(영) 2(국) 3(수2)
-          if(!p.colOrderV2){
-            var CIMAP={0:0,1:3,2:1,3:2};
-            var STD=['수학 이지혜','영어 김윤진','국어 박종희','수학 장영은'];
-            // 예전 레이아웃인지는 컬럼 개수가 아니라 실제 내용으로 판단해야 함:
-            // "위치1(index1)에 수학 장영은이 있는 요일이 있는가?" — 있으면 예전(구) 순서, 없으면 이미 새 순서
-            var isOldLayout=false;
-            Object.values(p.schedule).forEach(function(d){
-              if(d.cols&&d.cols[1]==='수학 장영은')isOldLayout=true;
-            });
-            if(isOldLayout){
-              Object.keys(p.schedule).forEach(function(dk){
-                var d=p.schedule[dk];if(!d)return;
-                var oc=d.cols||[];
-                d.cols=STD.slice();
-                (d.rows||[]).forEach(function(r){
-                  var o=r.cells||[];
-                  r.cells=[o[0]||[],o[2]||[],o[3]||[],o[1]||[]];
-                });
-              });
-              // 숙제 키 재매핑: hw_이름_날짜_ci
-              var newHw={};
-              Object.keys(p.homework||{}).forEach(function(k){
-                var parts=k.split('_');
-                if(parts[0]==='hw'&&parts.length>=4){
-                  var oldCi=parseInt(parts[parts.length-1]);
-                  if(CIMAP[oldCi]!==undefined){
-                    parts[parts.length-1]=String(CIMAP[oldCi]);
-                    newHw[parts.join('_')]=p.homework[k];
-                    return;
-                  }
-                }
-                newHw[k]=p.homework[k];
-              });
-              p.homework=newHw;
-              // 메모/전달사항 ci 재매핑
-              (p.classMemos||[]).forEach(function(m){if(CIMAP[m.ci]!==undefined)m.ci=CIMAP[m.ci];});
-              (p.dirNotices||[]).forEach(function(m){if(CIMAP[m.ci]!==undefined)m.ci=CIMAP[m.ci];});
-              // notices 키 재매핑: subj_before_날짜_ci / subj_after_날짜_ci
-              var newNt={};
-              Object.keys(p.notices||{}).forEach(function(k){
-                var m2=k.match(/^(subj_(?:before|after)_\d+)_(\d+)$/);
-                if(m2&&CIMAP[parseInt(m2[2])]!==undefined){
-                  newNt[m2[1]+'_'+CIMAP[parseInt(m2[2])]]=p.notices[k];
-                }else{
-                  newNt[k]=p.notices[k];
-                }
-              });
-              p.notices=newNt;
-            }
-            p.colOrderV2=true;
-          }
-          // 금요일 컬럼 보정: 예전 버전에서 마이그레이션된 데이터 중 금요일 "영어" 칸에
-          // 국어 학생들이 잘못 들어가고 "국어" 칸이 비어있는 경우를 감지해 원위치로 스왑
-          if(!p.friFixV3){
-            var friDay=p.schedule&&p.schedule.fri;
-            if(friDay&&friDay.rows&&friDay.rows.length){
-              var idx1HasData=friDay.rows.some(function(r){return r.cells[1]&&r.cells[1].length;});
-              var idx2Empty=friDay.rows.every(function(r){return !r.cells[2]||!r.cells[2].length;});
-              if(idx1HasData&&idx2Empty){
-                friDay.rows.forEach(function(r){
-                  var tmp=r.cells[1]||[];r.cells[1]=r.cells[2]||[];r.cells[2]=tmp;
-                });
-              }
-            }
-            p.friFixV3=true;
-          }
-          // 수/목요일 2:10 행에서 영어·국어 컬럼이 뒤바뀐 경우 보정
-          if(!p.wedThuFixV1){
-            ['wed','thu'].forEach(function(dk){
-              var d=p.schedule&&p.schedule[dk];
-              if(!d||!d.rows)return;
-              d.rows.forEach(function(r){
-                if(r.t!=='2:10')return;
-                var eng=r.cells&&r.cells[1],kor=r.cells&&r.cells[2];
-                if(eng&&eng.length&&(!kor||!kor.length)){
-                  r.cells[2]=eng;r.cells[1]=[];
-                }
-              });
-            });
-            p.wedThuFixV1=true;
-          }
+          // (안전 수정) 아래 세 마이그레이션(colOrderV2/friFixV3/wedThuFixV1)은 모두
+          // "수업표는 항상 정확히 [이지혜,김윤진,박종희,장영은] 4칸"이라는 옛날 가정 위에서
+          // 인덱스(0,1,2,3)만 보고 데이터를 재배치하던 1회성 보정 로직이었음. 지금은 과목·강사
+          // 수가 가변적(예: 박건희 추가로 5~6칸)이라 이 가정이 깨졌고, 플래그가 세팅되지 않은
+          // 기기에서 다시 실행되면 실제로는 전혀 다른 과목의 데이터를 엉뚱한 칸으로 옮기거나
+          // 아예 버리는 사고로 이어질 수 있어(실제로 한 번 이 문제로 수업표가 깨진 적 있음)
+          // 더 이상 어떤 데이터도 건드리지 않도록 비활성화하고 플래그만 세팅해 재평가를 막는다.
+          if(!p.colOrderV2)p.colOrderV2=true;
+          if(!p.friFixV3)p.friFixV3=true;
+          if(!p.wedThuFixV1)p.wedThuFixV1=true;
           // 메모/보강 기록에 id가 없던 항목들 때문에 클라우드 동기화 중 계속 중복 생성되던 문제 정리
           if(!p.dedupV1){
             var dedupTmpUid=(p.updatedAt||Date.now());
@@ -6845,14 +6750,12 @@ function renameSubjectTeacher(oldName){
   toast(oldName+' → '+newName+' 변경 완료');
 }
 function resetScheduleToDefault(){
-  if(!confirm('정말 수업표를 기본값으로 복구할까요?\n\n새로 추가한 과목·강사가 있다면 반 배정을 다시 해주셔야 합니다.\n출결·숙제·상담 기록은 그대로 유지됩니다.'))return;
-  DB.schedule=JSON.parse(JSON.stringify(DEFAULT_SCHEDULE));
-  DB.colOrderV2=true;DB.friFixV3=true;DB.wedThuFixV1=true; // 이미 정상 상태이므로 마이그레이션이 다시 건드리지 않도록 표시
-  save();
-  toast('수업표가 기본값으로 복구되었습니다');
-  if(typeof renderSchedTable==='function')renderSchedTable();
-  if(typeof renderSubjTeacherList==='function')renderSubjTeacherList();
-  if(typeof renderDash==='function')renderDash();
+  // (안전 수정) 이 버튼은 코드 안에 몇 달 전 스냅샷으로 박제된 DEFAULT_SCHEDULE(예: 퇴사한
+  // 영어 강민정·수학 류현지가 그대로 남아있는 옛날 데이터)로 현재 수업표 전체를 통째로
+  // 덮어쓰는 기능이었음. "기본값으로 복구"라는 이름과 달리 실제로는 최신 수업표를 옛날
+  // 데이터로 되돌려버리는 위험한 동작이라, 실수로 눌러 실제 사고가 난 적이 있어 비활성화함.
+  // 수업표에 문제가 있을 땐 이 버튼 대신 관리자에게 직접 문의해 안전하게 복구해야 함.
+  alert('이 기능은 안전상의 이유로 비활성화되었습니다.\n\n수업표에 문제가 있을 경우 이 버튼으로 복구하지 말고, 관리자(Claude)에게 문의해주세요.\n\n(이 버튼은 과거 데이터로 수업표 전체를 덮어써서 실제 사고를 일으킨 적이 있습니다.)');
 }
 function addSubjectTeacher(){
   var sn=document.getElementById('new-subj-name')?.value.trim();
