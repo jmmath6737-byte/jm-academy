@@ -887,6 +887,15 @@ button,select,input,textarea{font-family:inherit}
                 <option value="일일테스트">일일테스트</option>
                 <option value="주간테스트">주간테스트</option>
                 <option value="단어시험" id="test-type-vocab" style="display:none">단어시험</option>
+                <optgroup label="내신관리">
+                  <option value="중간고사">중간고사</option>
+                  <option value="기말고사">기말고사</option>
+                  <option value="수행평가">수행평가</option>
+                </optgroup>
+                <optgroup label="경시대회">
+                  <option value="KUT수학학력평가">KUT수학학력평가</option>
+                  <option value="TOMA경시대회">TOMA경시대회</option>
+                </optgroup>
               </select>
             </div>
             <div class="form-group"><label class="form-label">단원·내용</label>
@@ -911,9 +920,15 @@ button,select,input,textarea{font-family:inherit}
         <div class="card">
           <div class="card-head">
             <span class="card-title" id="test-list-title">시험 결과</span>
-            <button class="btn btn-gray btn-sm" onclick="clearTestFilter()">전체보기</button>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-gold btn-sm" onclick="shareTestReport()">📤 성적표 공유</button>
+              <button class="btn btn-gray btn-sm" onclick="clearTestFilter()">전체보기</button>
+            </div>
           </div>
-          <div class="card-body" id="test-list" style="max-height:420px;overflow-y:auto"></div>
+          <div class="card-body">
+            <canvas id="test-trend-chart" height="80" style="width:100%;display:none;margin-bottom:10px"></canvas>
+            <div id="test-list" style="max-height:380px;overflow-y:auto"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -1087,6 +1102,21 @@ button,select,input,textarea{font-family:inherit}
         <div class="card-head">
           <span class="card-title">💰 원비 수납 현황 (수입)</span>
           <input type="month" class="form-input" id="pay-month-picker" style="width:150px" onchange="changePayMonth(this.value)">
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 12px;background:var(--s2);border-bottom:1px solid var(--border);font-size:12px">
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-weight:600">
+            <input type="checkbox" id="pay-select-all" onchange="togglePaySelectAll(this.checked)">전체선택(미납만)
+          </label>
+          <span id="pay-select-count" style="color:var(--t3)">0명 선택됨</span>
+          <span style="flex:1"></span>
+          <input type="date" class="form-input" id="pay-bulk-date" style="width:130px;padding:5px 8px;font-size:12px">
+          <select class="form-input" id="pay-bulk-method" style="width:90px;padding:5px 8px;font-size:12px">
+            <option value="현금">현금</option>
+            <option value="카드">카드</option>
+            <option value="계좌이체">계좌이체</option>
+            <option value="기타">기타</option>
+          </select>
+          <button class="btn btn-gold btn-sm" onclick="bulkMarkPaid()">선택 일괄 수납완료</button>
         </div>
         <div class="card-body" id="pay-student-list" style="padding:0;max-height:560px;overflow-y:auto"></div>
       </div>
@@ -1353,7 +1383,7 @@ button,select,input,textarea{font-family:inherit}
             <input type="text" class="form-input" id="new-subj-teacher" placeholder="선생님 이름 (예: 김철수)" style="flex:1;min-width:120px">
             <button class="btn btn-blue" onclick="addSubjectTeacher()">+ 과목·강사 추가</button>
           </div>
-          <div style="font-size:11px;color:var(--t3);margin-top:6px">※ 삭제는 해당 과목에 배정된 반이 없을 때만 가능합니다</div>
+          <div style="font-size:11px;color:var(--t3);margin-top:6px">※ ✎ 를 누르면 이름만 바꿀 수 있어요 (배정된 반은 그대로 유지) · 삭제(✕)는 해당 과목에 배정된 반이 없을 때만 가능합니다</div>
         </div>
       </div>
       <div class="card full-card" style="grid-column:1/-1">
@@ -2270,18 +2300,24 @@ function renderPaymentsPage(){
     var statusBadge = pay
       ? (fee>0 && paidAmt>=fee ? '<span class="badge badge-green" title="'+detailText+'">완납</span>' : '<span class="badge badge-amber" title="'+detailText+'">부분납</span>')
       : '<span class="badge badge-red">미납</span>';
+    var safeName=s.name.replace(/'/g,"\\'");
+    var safeNameAttr=s.name.replace(/"/g,'&quot;');
     rows+='<div style="display:flex;align-items:center;gap:6px;padding:5px 10px;border-bottom:1px solid var(--border);font-size:12px">'+
+      '<input type="checkbox" class="pay-row-check" data-name="'+safeNameAttr+'" '+(pay?'disabled style="opacity:.25"':'onchange="updatePaySelectCount()"')+'>'+
       '<div style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+
         '<b style="font-size:12.5px">'+s.name+'</b> '+
-        '<span style="color:var(--t3);font-size:10.5px;cursor:pointer;text-decoration:underline dotted" title="클릭해서 학원비 수정" onclick="editStudentFeeInline(\''+s.name.replace(/'/g,"\\'")+'\')">'+fmtWon(fee)+' ✏️</span>'+
+        '<span style="color:var(--t3);font-size:10.5px;cursor:pointer;text-decoration:underline dotted" title="클릭해서 학원비 수정" onclick="editStudentFeeInline(\''+safeName+'\')">'+fmtWon(fee)+' ✏️</span>'+
       '</div>'+
       '<div style="flex-shrink:0">'+statusBadge+'</div>'+
-      '<button class="btn btn-blue btn-xs" style="flex-shrink:0" onclick="openPaymentModal(\''+s.name.replace(/'/g,"\\'")+'\')">'+(pay?'수정':'수납체크')+'</button>'+
-      (pay?('<button class="btn btn-gray btn-xs" style="flex-shrink:0" onclick="undoPayment(\''+s.name.replace(/'/g,"\\'")+'\')">미납처리</button>'):'')+
+      '<button class="btn btn-blue btn-xs" style="flex-shrink:0" onclick="openPaymentModal(\''+safeName+'\')">'+(pay?'수정':'수납체크')+'</button>'+
+      (pay?('<button class="btn btn-gray btn-xs" style="flex-shrink:0" onclick="undoPayment(\''+safeName+'\')">미납처리</button>'):'')+
     '</div>';
   });
   var listEl=document.getElementById('pay-student-list');
   if(listEl)listEl.innerHTML=rows||'<div style="padding:16px;text-align:center;color:var(--t3);font-size:13px">이번 달 재원 학생이 없습니다</div>';
+  var selAllEl=document.getElementById('pay-select-all');if(selAllEl)selAllEl.checked=false;
+  var bulkDateEl=document.getElementById('pay-bulk-date');if(bulkDateEl&&!bulkDateEl.value)bulkDateEl.value=new Date().toISOString().slice(0,10);
+  updatePaySelectCount();
 
   var expEl=document.getElementById('pay-stat-expected');if(expEl)expEl.textContent=fmtWon(expected);
   var recEl=document.getElementById('pay-stat-received');if(recEl)recEl.textContent=fmtWon(received);
@@ -2334,6 +2370,35 @@ function undoPayment(name){
     save();
   }
   renderPaymentsPage();
+}
+function updatePaySelectCount(){
+  var n=document.querySelectorAll('.pay-row-check:checked').length;
+  var el=document.getElementById('pay-select-count');
+  if(el)el.textContent=n+'명 선택됨';
+}
+function togglePaySelectAll(checked){
+  document.querySelectorAll('.pay-row-check:not(:disabled)').forEach(function(cb){cb.checked=checked;});
+  updatePaySelectCount();
+}
+function bulkMarkPaid(){
+  var checked=Array.prototype.slice.call(document.querySelectorAll('.pay-row-check:checked'));
+  if(!checked.length){toast('먼저 학생을 선택해주세요 (이미 수납된 학생은 선택할 수 없어요)');return;}
+  var date=document.getElementById('pay-bulk-date')?.value||new Date().toISOString().slice(0,10);
+  var method=document.getElementById('pay-bulk-method')?.value||'현금';
+  var names=checked.map(function(cb){return cb.getAttribute('data-name');});
+  if(!confirm(names.length+'명을 '+curPayMonth+' 수납완료로 일괄 처리할까요?\n(각 학생의 등록된 학원비 금액 · '+date+' · '+method+')\n\n'+names.join(', ')))return;
+  if(!DB.payments)DB.payments=[];
+  var done=0;
+  names.forEach(function(name){
+    if(findPayment(name,curPayMonth))return; // 이미 수납된 경우 건너뜀 (안전장치)
+    var stu=(DB.students||[]).find(function(s){return s.name===name;});
+    var amount=stu?feeToNumber(stu.fee):0;
+    DB.payments.push({id:uid++,student:name,ym:curPayMonth,amount:String(amount),date:date,method:method,memo:'',ts:Date.now()});
+    done++;
+  });
+  save();
+  renderPaymentsPage();
+  toast(done+'명 일괄 수납완료 처리되었습니다');
 }
 function renderTeacherMonthlyCount(studentsThisMonth){
   var el=document.getElementById('pay-teacher-count-list');
@@ -6704,7 +6769,14 @@ function renderSubjTeacherList(){
   subjects.forEach(function(subj){
     var chip=document.createElement('span');
     chip.style.cssText='display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;padding:6px 12px;background:var(--s2);border:1px solid var(--border);border-radius:20px';
-    chip.textContent=subj;
+    var label=document.createElement('span');label.textContent=subj;
+    chip.appendChild(label);
+    var ren=document.createElement('button');
+    ren.textContent='✎';
+    ren.title='이름 변경';
+    ren.style.cssText='border:none;background:none;color:var(--t2);cursor:pointer;font-size:12px;padding:0';
+    ren.onclick=function(){renameSubjectTeacher(subj);};
+    chip.appendChild(ren);
     var del=document.createElement('button');
     del.textContent='✕';
     del.style.cssText='border:none;background:none;color:var(--t3);cursor:pointer;font-size:12px;padding:0';
@@ -6712,6 +6784,26 @@ function renderSubjTeacherList(){
     chip.appendChild(del);
     el.appendChild(chip);
   });
+}
+function renameSubjectTeacher(oldName){
+  var newName=prompt('새 과목·강사 이름을 입력해주세요 (예: 영어 박건희)',oldName);
+  if(newName===null)return;
+  newName=newName.trim();
+  if(!newName){toast('이름이 입력되지 않았습니다');return;}
+  if(newName===oldName)return;
+  var existing=getAllSubjectTeachers();
+  if(existing.includes(newName)){toast('이미 등록된 과목·강사 이름입니다');return;}
+  if(!confirm(oldName+' → '+newName+' 로 이름을 바꿀까요?\n배정되어 있던 학생·시간은 그대로 유지됩니다.'))return;
+  Object.values(DB.schedule).forEach(function(d){
+    (d.cols||[]).forEach(function(c,ci){
+      if(c===oldName)d.cols[ci]=newName;
+    });
+  });
+  save();
+  renderSubjTeacherList();renderSettingsClsList();
+  if(typeof renderSchedTable==='function'&&curPage==='sched')renderSchedTable();
+  if(typeof renderDash==='function')renderDash();
+  toast(oldName+' → '+newName+' 변경 완료');
 }
 function resetScheduleToDefault(){
   if(!confirm('정말 수업표를 기본값으로 복구할까요?\n\n새로 추가한 과목·강사가 있다면 반 배정을 다시 해주셔야 합니다.\n출결·숙제·상담 기록은 그대로 유지됩니다.'))return;
@@ -7781,6 +7873,7 @@ function renderTestList2(){
   var titleEl=document.getElementById('test-list-title');
   if(titleEl)titleEl.textContent=(stu||studySubjMap[curStudySubj]||'')+' 시험 결과';
   var list=(DB.vocabRecords||[]).filter(function(v){return v.subj===curStudySubj&&(!stu||v.student===stu);});
+  renderTestTrendChart(list,stu);
   if(!list.length){el.innerHTML='<div style="color:var(--t3);font-size:13px;padding:8px 0">기록 없음</div>';return;}
   el.innerHTML='';
   list.slice(0,30).forEach(function(v){
@@ -7797,6 +7890,69 @@ function renderTestList2(){
       (v.miss?'<div class="vocab-miss">오답: '+v.miss+'</div>':'');
     el.appendChild(div);
   });
+}
+
+function renderTestTrendChart(list,stu){
+  var canvas=document.getElementById('test-trend-chart');
+  if(!canvas)return;
+  if(!stu||list.length<2){canvas.style.display='none';return;}
+  canvas.style.display='block';
+  var pts=list.slice(0,20).slice().reverse(); // 기록은 최신순(unshift)이라 — 오래된순으로 뒤집어서 왼쪽→오른쪽 시간순으로 표시
+  var dpr=window.devicePixelRatio||1;
+  var w=canvas.clientWidth||canvas.parentElement.clientWidth||300;
+  var h=80;
+  canvas.width=w*dpr;canvas.height=h*dpr;canvas.style.height=h+'px';
+  var ctx=canvas.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,w,h);
+  var padX=10,padY=10;
+  var n=pts.length;
+  var stepX=n>1?(w-padX*2)/(n-1):0;
+  function yFor(score){return padY+(100-Math.max(0,Math.min(100,score)))/100*(h-padY*2);}
+  ctx.strokeStyle='#c8c5c0';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(padX,yFor(60));ctx.lineTo(w-padX,yFor(60));ctx.stroke(); // 60점 기준선(참고용)
+  ctx.strokeStyle='#9b9895';ctx.lineWidth=2;
+  ctx.beginPath();
+  pts.forEach(function(p,i){var x=padX+i*stepX,y=yFor(p.score);if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);});
+  ctx.stroke();
+  pts.forEach(function(p,i){
+    var x=padX+i*stepX,y=yFor(p.score);
+    ctx.fillStyle=p.score>=90?'#18a06b':p.score>=70?'#d97706':'#e03a3a';
+    ctx.beginPath();ctx.arc(x,y,3.5,0,Math.PI*2);ctx.fill();
+  });
+}
+function buildTestReportText(name){
+  var list=(DB.vocabRecords||[]).filter(function(v){return v.student===name;});
+  if(!list.length)return name+' 학생의 시험 기록이 없습니다.';
+  var ordered=list.slice().reverse(); // 오래된순
+  var scores=ordered.map(function(v){return v.score;});
+  var avg=Math.round(scores.reduce(function(a,b){return a+b;},0)/scores.length);
+  var lines=[name+' 학생 시험 기록',''];
+  ordered.slice(-15).forEach(function(v){
+    lines.push('· '+v.date+' ['+v.type+'] '+v.title+' — '+v.score+'점'+(v.retest==='yes'?' (재시험 필요)':'')+(v.miss?'\n   오답: '+v.miss:''));
+  });
+  lines.push('');
+  lines.push('평균 '+avg+'점 (최근 '+Math.min(15,ordered.length)+'회 기준)');
+  return lines.join('\n');
+}
+function shareTestReport(){
+  var name=document.getElementById('study-stu-main')?.value;
+  if(!name){toast('학생을 선택해주세요 (전체보기 상태에서는 공유할 수 없어요)');return;}
+  var text=buildTestReportText(name);
+  var isMobileDevice=/Android|iPhone|iPad|iPod|Mobi/i.test(navigator.userAgent||'');
+  if(navigator.share&&isMobileDevice){
+    navigator.share({title:name+' 성적표',text:text}).catch(function(){});
+    return;
+  }
+  var afterCopy=function(){
+    toast('성적표가 복사되었습니다 — 열리는 채팅 목록에서 '+name+' 학부모님과의 대화창에 붙여넣기(Ctrl+V) 하세요');
+    if(typeof openAcademyKakaoChannel==='function')openAcademyKakaoChannel();
+  };
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(afterCopy).catch(function(){fallbackCopy(text);});
+  }else{
+    fallbackCopy(text);
+  }
 }
 
 function renderWarnListOnly(){var retest=DB.vocabRecords.filter(function(v){return v.retest==='yes';});renderWarnList(retest);try{renderTodayMemoFeed();}catch(e){}}
