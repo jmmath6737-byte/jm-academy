@@ -116,6 +116,16 @@ button,select,input,textarea{font-family:inherit}
 .login-btn{width:100%;padding:12px;background:var(--gold);color:var(--navy);font-size:14px;font-weight:800;border:none;border-radius:8px;cursor:pointer;margin-top:4px}
 .login-btn:active{opacity:.85}
 .login-error{color:var(--red);font-size:12px;margin-top:12px;text-align:center;min-height:16px}
+/* 27차: 로그인 첫 화면 "학생/선생님" 선택 큰 버튼 */
+.role-choice-btn{width:100%;display:flex;align-items:center;gap:14px;padding:16px 16px;border-radius:12px;border:1.5px solid var(--border2);background:var(--s2);cursor:pointer;text-align:left;margin-bottom:12px;transition:transform .08s,border-color .12s}
+.role-choice-btn:last-child{margin-bottom:0}
+.role-choice-btn:active{transform:scale(.98)}
+.role-choice-text{flex:1;display:flex;flex-direction:column;gap:2px}
+.role-choice-text b{font-size:15px;color:var(--t1)}
+.role-choice-text small{font-size:11.5px;color:var(--t2)}
+.role-choice-arrow{font-size:20px;color:var(--t3);flex-shrink:0}
+.role-choice-student{border-color:var(--accent)}
+.role-choice-staff{border-color:var(--navy)}
 .sidebar-user{padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;justify-content:space-between;gap:8px}
 .sidebar-user .u-name{font-size:13px;font-weight:700;color:#fff}
 .sidebar-user .u-role{font-size:11px;color:rgba(255,255,255,.45);margin-top:1px}
@@ -135,6 +145,7 @@ button,select,input,textarea{font-family:inherit}
 
 /* ── 온라인 상담·등록 신청 화면 (공개) ── */
 #public-apply-screen{position:fixed;inset:0;background:var(--bg);display:none;justify-content:center;overflow-y:auto;padding:24px 16px;z-index:1000}
+#consult-apply-screen{position:fixed;inset:0;background:var(--bg);display:none;justify-content:center;overflow-y:auto;padding:24px 16px;z-index:1000}
 .apply-card{background:var(--surface);border-radius:16px;padding:28px 24px;width:100%;max-width:520px;box-shadow:0 10px 40px rgba(0,0,0,.1);height:fit-content}
 .apply-card h1{font-size:18px;font-weight:800;color:var(--navy);margin-bottom:4px}
 .apply-card .apply-sub{font-size:12px;color:var(--t2);margin-bottom:20px}
@@ -150,6 +161,12 @@ button,select,input,textarea{font-family:inherit}
 .form-input:focus{border-color:var(--accent);background:#fff}
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 @media(max-width:500px){.form-row{grid-template-columns:1fr}}
+.ca-subj-group{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:4px}
+.ca-subj-check{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:600;padding:7px 12px;border:1px solid var(--border);border-radius:20px;background:var(--s2);cursor:pointer;color:var(--t1)}
+.ca-subj-check input{margin:0}
+.ca-link-row{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin:10px 0 14px}
+.ca-link-row a{text-decoration:none;white-space:nowrap}
+.ca-tb-row{border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px;background:var(--s2)}
 
 /* ── 배지 ── */
 .badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
@@ -478,7 +495,27 @@ button,select,input,textarea{font-family:inherit}
 
 <!-- ── 로그인 화면 ── -->
 <div id="login-screen">
-  <div class="login-card">
+  <!-- 27차: "학생로그인을 하지않고 바로 관리자로그인을해서 안된다고 하는경우가 많네" 요청으로,
+       아이디·비밀번호 입력창을 바로 보여주는 대신, 먼저 "학생/선생님" 중 하나를 크게 골라야
+       하는 선택 화면을 추가함. 관리자 로그인 입력창은 "선생님(관리자) 로그인"을 눌러야 나옴. -->
+  <div id="login-chooser-view" class="login-card">
+    <div class="login-logo">
+      <div style="display:flex;align-items:center;justify-content:center;gap:8px">
+        <img class="jm-logo-img" alt="JM 로고" style="height:28px;width:28px;border-radius:6px;display:block">
+        <div class="name">제이엠 수학영어&리드인학원</div>
+      </div>
+      <div class="sub">아래에서 로그인 방법을 선택해주세요</div>
+    </div>
+    <button type="button" class="role-choice-btn role-choice-student" onclick="showStudentLogin()">
+      <span class="role-choice-text"><b>학생 로그인</b><small>단어시험 응시 · 내 기록 확인</small></span>
+      <span class="role-choice-arrow">›</span>
+    </button>
+    <button type="button" class="role-choice-btn role-choice-staff" onclick="showStaffLoginForm()">
+      <span class="role-choice-text"><b>선생님(관리자) 로그인</b><small>학원관리 시스템</small></span>
+      <span class="role-choice-arrow">›</span>
+    </button>
+  </div>
+  <div id="login-staff-view" class="login-card" style="display:none">
     <div class="login-logo">
       <div style="display:flex;align-items:center;justify-content:center;gap:8px">
         <img class="jm-logo-img" alt="JM 로고" style="height:28px;width:28px;border-radius:6px;display:block">
@@ -496,7 +533,7 @@ button,select,input,textarea{font-family:inherit}
     </div>
     <button class="login-btn" onclick="doLogin()">로그인</button>
     <div class="login-error" id="login-error"></div>
-    <button type="button" class="link-btn" style="display:block;margin:16px auto 0;text-align:center" onclick="showStudentLogin()">🎓 학생이신가요? 학생 로그인</button>
+    <button type="button" class="link-btn" style="display:block;margin:16px auto 0;text-align:center" onclick="showLoginChooser()">← 처음으로</button>
   </div>
 </div>
 
@@ -521,7 +558,7 @@ button,select,input,textarea{font-family:inherit}
     </div>
     <button class="login-btn" onclick="studentTryLogin()">로그인</button>
     <div class="login-error" id="stu-login-error"></div>
-    <button type="button" class="link-btn" style="display:block;margin:16px auto 0;text-align:center" onclick="backToStaffLogin()">← 선생님 로그인으로</button>
+    <button type="button" class="link-btn" style="display:block;margin:16px auto 0;text-align:center" onclick="backToStaffLogin()">← 처음으로</button>
   </div>
 
   <div id="student-test-view" class="apply-card" style="display:none;max-width:460px;height:fit-content">
@@ -710,6 +747,125 @@ button,select,input,textarea{font-family:inherit}
       <div style="font-size:13px;color:var(--t2);line-height:1.7;margin-bottom:20px">확인 후 학원에서 안내드린 연락처로<br>연락드리겠습니다. 감사합니다.</div>
       <a href="#" id="kakao-channel-btn" target="_blank" rel="noopener" class="login-btn" style="display:none;text-decoration:none;background:#fee500;color:#3c1e1e;box-sizing:border-box">💬 학원 카카오톡 채널 추가하기</a>
       <div style="font-size:11px;color:var(--t3);margin-top:8px">채널 추가하시면 학원 공지·상담 안내를 카카오톡으로 받아보실 수 있어요</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── 27차 후속: 상담신청서 (입회원서와 분리된, 가벼운 상담 예약용 폼) — ?consult=1 로 접속 ── -->
+<div id="consult-apply-screen">
+  <div class="apply-card">
+    <div id="consult-apply-form">
+      <div style="display:flex;align-items:center;justify-content:center;gap:8px">
+        <img class="jm-logo-img" alt="JM 로고" style="height:26px;width:26px;border-radius:6px;display:block">
+        <h1 style="margin:0">제이엠 수학영어&리드인학원</h1>
+      </div>
+      <div class="apply-sub" style="font-size:20px;font-weight:800;color:var(--t1);text-align:center;margin-top:4px">상담 및 진단테스트 신청서</div>
+      <div class="ca-link-row" id="ca-link-row">
+        <a href="#" id="ca-blog-link" target="_blank" rel="noopener" class="btn btn-gray btn-xs">📝 블로그 바로가기</a>
+        <a href="#" id="ca-insta-link" target="_blank" rel="noopener" class="btn btn-gray btn-xs">📷 인스타 바로가기</a>
+        <a href="#" id="ca-channel-link" target="_blank" rel="noopener" class="btn btn-xs" style="background:#fee500;color:#3c1e1e">💬 카카오 채널</a>
+      </div>
+      <div style="font-size:12px;color:var(--t2);line-height:1.7;margin-bottom:12px">
+        등록을 먼저 권하기보다, 지금의 학습 상태와 필요한 방향을 확인하는 상담부터 시작합니다. 수학·영어·국어·리드인독서 중 상담이 필요한 과목을 선택해 주시면, 학습 상황과 고민을 충분히 듣고 필요한 경우 간단한 진단테스트를 함께 진행합니다.<br><b>100% 사전 예약제</b>로 운영되니, 아래 내용을 남겨주시면 확인 후 순차적으로 연락드리겠습니다.
+      </div>
+      <div class="apply-consent-box" style="margin-bottom:16px">
+        <b>[상담 안내]</b><br>
+        · 상담은 100% 예약제로 진행됩니다<br>
+        · 학생 상황에 따라 상담만 진행되거나, 간단한 진단테스트가 함께 진행될 수 있습니다<br>
+        · 최근 시험지·성적표나 현재 교재가 있으면 상담 시 가져오셔도 좋습니다
+      </div>
+
+      <div class="form-group"><label class="form-label">학생 이름 *</label><input class="form-input" id="ca-name" placeholder="학생 이름"></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">학교</label>
+          <select class="form-input" id="ca-school" onchange="toggleSchoolCustom('ca-school','ca-school-custom');updateMsGradeOptions('ca');">
+            <option value="">선택 안함</option>
+            <optgroup label="초등학교">
+              <option>인덕초</option><option>신당초</option><option>산동초</option>
+              <option>옥계동부초</option><option>해마루초</option><option>원당초</option><option>해평초</option>
+            </optgroup>
+            <optgroup label="중학교">
+              <option>인덕중</option><option>산동중</option><option>옥계동부중</option><option>원당중</option><option>해마루중</option>
+            </optgroup>
+            <optgroup label="고등학교">
+              <option>산동고</option><option>구미제일고</option><option>해마루고</option>
+              <option>오상고</option><option>금오고</option><option>현일고</option><option>전자공고</option>
+            </optgroup>
+            <option value="__custom__">기타(직접입력)</option>
+          </select>
+          <input class="form-input" id="ca-school-custom" placeholder="학교명 직접 입력" style="display:none;margin-top:6px" oninput="updateMsGradeOptions('ca')">
+        </div>
+        <div class="form-group"><label class="form-label">학년</label>
+          <select class="form-input" id="ca-grade">
+            <option value="">선택 안함</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group"><label class="form-label">학부모 연락처 *</label><input class="form-input" id="ca-phone" placeholder="010-0000-0000"></div>
+
+      <div class="form-group">
+        <label class="form-label">상담 희망 과목 * (중복 선택 가능)</label>
+        <div class="ca-subj-group">
+          <label class="ca-subj-check"><input type="checkbox" class="ca-subj-chk" value="수학"> 수학</label>
+          <label class="ca-subj-check"><input type="checkbox" class="ca-subj-chk" value="영어"> 영어</label>
+          <label class="ca-subj-check"><input type="checkbox" class="ca-subj-chk" value="국어"> 국어</label>
+          <label class="ca-subj-check"><input type="checkbox" class="ca-subj-chk" value="리드인독서"> 리드인독서</label>
+        </div>
+      </div>
+
+      <div class="form-group"><label class="form-label">현재 고민되는 부분 / 상담받고 싶은 내용 *</label><textarea class="form-input" id="ca-memo" rows="3" placeholder="현재 학습 상황, 고민되는 부분, 궁금한 점을 자유롭게 적어주세요"></textarea></div>
+      <div class="form-group"><label class="form-label">현재 학원이나 다른 학습을 하고 있나요?</label><input class="form-input" id="ca-other-academy" placeholder="예: 없음 / OO학원 수학 재원 중 등"></div>
+
+      <div class="form-group">
+        <label class="form-label">저희 학원을 알게 되신 경로 (중복 선택 가능)</label>
+        <div class="ca-subj-group">
+          <label class="ca-subj-check"><input type="checkbox" class="ca-ref-chk" value="지인소개"> 지인소개</label>
+          <label class="ca-subj-check"><input type="checkbox" class="ca-ref-chk" value="네이버검색 및 스마트플레이스"> 네이버검색/스마트플레이스</label>
+          <label class="ca-subj-check"><input type="checkbox" class="ca-ref-chk" value="블로그"> 블로그</label>
+          <label class="ca-subj-check"><input type="checkbox" class="ca-ref-chk" value="인스타"> 인스타</label>
+          <label class="ca-subj-check"><input type="checkbox" class="ca-ref-chk" value="간판 및 전단지·현수막광고"> 간판/전단지</label>
+          <label class="ca-subj-check"><input type="checkbox" class="ca-ref-chk" value="기타"> 기타</label>
+        </div>
+      </div>
+
+      <div class="form-group"><label class="form-label">전화 상담 가능 시간대</label><input class="form-input" id="ca-phone-time" placeholder="예: 평일 오후 3~5시"></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">방문 상담 가능 날짜</label><input class="form-input" id="ca-date" type="date"></div>
+        <div class="form-group"><label class="form-label">방문 상담 가능 시간</label><input class="form-input" id="ca-time" type="time"></div>
+      </div>
+      <div style="font-size:11px;color:var(--t3);margin-top:-10px;margin-bottom:10px">상담 가능 시간: 평일 10:00~14:00 · 토·일 11:00~18:00 (전화·방문 상담 모두 위 시간 안에서 가능합니다)<br>전화 가능 시간대·방문 날짜/시간은 모두 선택사항입니다(비워두셔도 접수됩니다) — 참고해서 확정 연락을 드립니다</div>
+
+      <div class="form-group">
+        <label class="form-label">현재·최근 사용 중인 교재</label>
+        <div id="ca-textbook-list"></div>
+        <button type="button" class="btn btn-gray btn-sm" onclick="caAddTextbookRow()">+ 교재 추가</button>
+        <div style="font-size:11px;color:var(--t3);margin-top:4px">과목별로 교재명과 사진을 각각 추가할 수 있습니다(선택사항, 여러 과목 추가 가능)</div>
+      </div>
+
+      <label class="apply-consent-check" id="ca-blog-check-wrap" style="display:none">
+        <input type="checkbox" id="ca-blog-check">
+        <span>상담 전 학원 블로그·인스타그램을 참고했습니다 (참고하시면 상담 시간이 단축됩니다)</span>
+      </label>
+
+      <div class="apply-consent-box">
+        <b>[개인정보 수집·이용 동의]</b><br>
+        · 수집 항목: 학생 이름, 학교·학년, 학부모 연락처, 상담 희망 과목, 상담 내용, 학원을 알게 된 경로, 전화 상담 가능 시간, 방문 상담 가능 일시, 현재 학습 현황, 교재명·교재 사진<br>
+        · 수집 목적: 학원 상담·진단테스트 예약 진행<br>
+        · 보유 기간: 상담 완료 후 등록하지 않으실 경우 요청 시 즉시 파기합니다<br>
+        · 동의를 거부할 권리가 있으며, 동의하지 않으실 경우 상담 신청이 제한될 수 있습니다
+      </div>
+      <label class="apply-consent-check">
+        <input type="checkbox" id="ca-consent">
+        <span>위 개인정보 수집·이용에 동의합니다 (필수)</span>
+      </label>
+      <button class="login-btn" onclick="submitConsultApplication()">상담 신청하기</button>
+      <div class="login-error" id="ca-error"></div>
+    </div>
+    <div id="consult-apply-done" style="display:none;text-align:center;padding:30px 10px">
+      <div style="font-size:40px;margin-bottom:10px">✅</div>
+      <div style="font-size:16px;font-weight:700;color:var(--navy);margin-bottom:8px">상담 신청이 접수되었습니다</div>
+      <div style="font-size:13px;color:var(--t2);line-height:1.7;margin-bottom:20px">입력하신 연락처로 상담 일정을<br>확정해드리겠습니다. 감사합니다.</div>
+      <a href="#" id="ca-kakao-channel-btn" target="_blank" rel="noopener" class="login-btn" style="display:none;text-decoration:none;background:#fee500;color:#3c1e1e;box-sizing:border-box">💬 학원 카카오톡 채널 추가하기</a>
     </div>
   </div>
 </div>
@@ -907,8 +1063,8 @@ button,select,input,textarea{font-family:inherit}
         <button class="btn btn-blue btn-xs" onclick="smsApplyLink()">📱 문자로 전송</button>
       </div>
       <div class="card" style="padding:10px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <span style="font-size:12px;color:var(--t2);white-space:nowrap">📝 구글 상담신청서 링크</span>
-        <code id="consult-link-text" style="font-size:11px;background:var(--s2);padding:5px 8px;border-radius:6px;word-break:break-all;flex:1;min-width:140px">https://forms.gle/MLZSsBvb81Rv5qTh6</code>
+        <span style="font-size:12px;color:var(--t2);white-space:nowrap">📝 상담신청서 링크</span>
+        <code id="consult-link-text" style="font-size:11px;background:var(--s2);padding:5px 8px;border-radius:6px;word-break:break-all;flex:1;min-width:140px"></code>
         <button class="btn btn-gray btn-xs" onclick="copyConsultLink()">복사</button>
         <button class="btn btn-blue btn-xs" onclick="smsConsultLink()">📱 문자로 전송</button>
       </div>
@@ -1306,6 +1462,14 @@ button,select,input,textarea{font-family:inherit}
           </select>
           <button class="btn btn-blue" id="extra-pay-submit-btn" onclick="addExtraPayment()">+ 항목 등록</button>
         </div>
+        <!-- 27차: "교재및 응시료는 일회성이라 입력한 달에만 보이게" + "체크박스해서 일괄삭제" 요청으로 추가 -->
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+          <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--t2);cursor:pointer">
+            <input type="checkbox" id="extra-pay-check-all" onchange="toggleExtraPayCheckAll(this.checked)"> 전체선택
+          </label>
+          <button class="btn btn-red btn-xs" onclick="bulkDeleteExtraPayments()">🗑 선택 삭제</button>
+          <span id="extra-pay-check-count" style="font-size:11px;color:var(--t3)"></span>
+        </div>
         <div id="extra-pay-list"></div>
         <div id="extra-pay-total" style="font-size:12px;color:var(--t2);margin-top:8px;font-weight:600"></div>
       </div>
@@ -1651,7 +1815,8 @@ button,select,input,textarea{font-family:inherit}
               <li><b>"원생으로 등록"</b> 클릭 → 신청 내용이 자동으로 채워진 원생 등록창이 열림 → 확인 후 저장</li>
               <li>처리 완료된 신청은 <b>"삭제"</b>로 목록에서 정리</li>
             </ol>
-            <b>카카오톡 채널 추가 버튼 설정:</b> 신청 완료 화면에 "카카오톡 채널 추가" 버튼을 띄우려면, 코드 상단의 <code>KAKAO_CHANNEL_URL</code> 값에 학원 채널 URL을 입력해야 합니다 (카카오톡 채널 관리자센터 &gt; 상세설정 &gt; 채널 URL에서 복사). 비워두면 버튼이 보이지 않습니다.
+            <b>카카오톡 채널 추가 버튼 설정:</b> 신청 완료 화면에 "카카오톡 채널 추가" 버튼을 띄우려면, 코드 상단의 <code>KAKAO_CHANNEL_URL</code> 값에 학원 채널 URL을 입력해야 합니다 (카카오톡 채널 관리자센터 &gt; 상세설정 &gt; 채널 URL에서 복사). 비워두면 버튼이 보이지 않습니다.<br>
+            <b>상담신청서 상단 블로그·인스타 링크 설정:</b> 상담신청서(<code>?consult=1</code>) 맨 위 "블로그 바로가기"/"인스타 바로가기"/"카카오 채널" 버튼은 코드 상단의 <code>BLOG_URL</code>·<code>INSTAGRAM_URL</code>·<code>KAKAO_CHANNEL_URL</code> 값을 그대로 사용합니다. 주소가 바뀌면 이 값들만 바꿔주면 되고, 비워두면 해당 버튼만 자동으로 숨겨집니다.
           </div>
         </details>
         <details class="manual-item">
@@ -2243,6 +2408,19 @@ function rebuildStudySubjects(){
   if(SUBJ_KEYS.indexOf(curStudySubj)<0)curStudySubj=SUBJ_KEYS[0]||'math1';
   renderStudySubjButtons();
 }
+// 27차: "수업표에서 수학장영은이랑 국어 학생명단 색이 같네" 버그 수정용 공용 헬퍼.
+// 예전엔 수업표 여러 화면에서 "그 날의 컬럼 번호 % 4"로 색을 뽑는 방식(CC/colors/colPairs/cols/
+// cols2/CCLS 등 각자 따로 둔 4색짜리 배열)을 썼는데, 요일마다 과목(강사) 수가 다르다 보니(화·목요일은
+// 6개, 월·수·금은 4~5개) 컬럼 번호가 겹쳐서 서로 다른 과목이 같은 색을 받는 문제가 있었음
+// (예: 화요일 컬럼 순서 [이지혜0,장영은1,류현지2,김윤진3,강민정4,박종희5] → 장영은(1%4=1)과
+// 박종희(5%4=1)가 똑같이 'en' 색을 받음). 컬럼 번호가 아니라 "과목(강사) 이름 자체"로 색을 찾도록
+// rebuildStudySubjects()가 이미 관리하는 studySubjColors 레지스트리(기존 4과목은 원래 색 유지,
+// 새로 추가되는 강사는 STUDY_SUBJ_EXTRA_PALETTE에서 겹치지 않는 색을 자동 배정)를 그대로 재사용함.
+function getSubjColorPair(subjLabel){
+  if(!subjLabel)return ['var(--s2)','var(--t1)'];
+  var key=STUDY_SUBJ_LEGACY_KEY[subjLabel]||subjLabel;
+  return studySubjColors[key]||STUDY_SUBJ_EXTRA_PALETTE[0]||['var(--s2)','var(--t1)'];
+}
 function renderStudySubjButtons(){
   var wrap=document.getElementById('study-subj-buttons');
   if(!wrap)return;
@@ -2312,6 +2490,9 @@ let uid=Date.now();
 const KAKAO_CHANNEL_URL='http://pf.kakao.com/_uukyn';
 // 카카오 비즈니스 채널 관리자센터의 "내 채팅" 페이지 — 대시보드 바로가기 버튼은 이 링크로 엽니다 (선생님이 실제 대화 목록을 바로 볼 수 있도록).
 const KAKAO_BUSINESS_CHAT_URL='https://business.kakao.com/_uukyn/chats?t_src=business_partnercenter&t_ch=lnb&t_obj=%EB%82%B4%EC%B1%84%ED%8C%85_%ED%81%B4%EB%A6%AD';
+// ⚠️ 상담신청서 상단의 "블로그 바로가기"/"인스타 바로가기" 버튼에 쓰이는 주소입니다. 비워두면 해당 버튼이 자동으로 숨겨집니다.
+const BLOG_URL='https://blog.naver.com/youngun78';
+const INSTAGRAM_URL='https://instagram.com/jmmath_readin';
 function openAcademyKakaoChannel(){
   var url=KAKAO_BUSINESS_CHAT_URL||KAKAO_CHANNEL_URL;
   if(!url){toast('설정된 학원 카카오톡 채널 링크가 없어요');return;}
@@ -2416,6 +2597,8 @@ function doLogout(){
   if(errEl)errEl.textContent='';
   document.getElementById('app-root').style.display='none';
   document.getElementById('login-screen').style.display='flex';
+  // 27차: 로그아웃하면 입력창이 아니라 "학생/선생님" 선택 화면부터 다시 보여줌
+  showLoginChooser();
 }
 
 function enterApp(){
@@ -2484,6 +2667,195 @@ function submitPublicApplication(){
     else{kakaoBtn.style.display='none';}
   }
 }
+
+// ── 27차 후속~28차 재설계: 상담신청서 (입회원서와 별개의, 네이버예약·구글폼 상담신청서 항목을 참고한 폼) ──
+var CONSULT_PHOTO_BUCKET='consult-photos';
+var caTextbooks=[]; // {key, subject('수학'|'영어'|'국어'), name, photoBlob, previewUrl} - 과목별로 여러 개 추가 가능(중복 과목도 허용)
+var caTbSeq=1;
+function caFmtAppointment(iso){
+  // iso: 'YYYY-MM-DDTHH:MM' 형식. 원장님이 목록에서 바로 읽기 좋게 "11/05(수) 15:30"으로 변환
+  if(!iso)return '';
+  var m=iso.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+  if(!m)return iso;
+  var y=+m[1],mo=+m[2],d=+m[3],hh=m[4],mi=m[5];
+  var wd=['일','월','화','수','목','금','토'][new Date(y,mo-1,d).getDay()];
+  var hhmi=(hh==='00'&&mi==='00')?'':(' '+hh+':'+mi);
+  return mo+'/'+d+'('+wd+')'+hhmi;
+}
+
+function caResizeImageFile(file){
+  // 휴대폰 카메라 원본(수 MB)을 그대로 올리면 느리고 용량도 크므로,
+  // 캔버스로 가로/세로 최대 1280px · JPEG 품질 0.82로 줄여서 업로드함
+  return new Promise(function(resolve,reject){
+    var img=new Image();
+    var url=URL.createObjectURL(file);
+    img.onload=function(){
+      var maxSide=1280;
+      var w=img.width,h=img.height;
+      if(w>maxSide||h>maxSide){
+        if(w>h){h=Math.round(h*maxSide/w);w=maxSide;}
+        else{w=Math.round(w*maxSide/h);h=maxSide;}
+      }
+      var canvas=document.createElement('canvas');
+      canvas.width=w;canvas.height=h;
+      var ctx=canvas.getContext('2d');
+      ctx.drawImage(img,0,0,w,h);
+      URL.revokeObjectURL(url);
+      canvas.toBlob(function(blob){
+        if(blob)resolve(blob);else reject(new Error('이미지 변환 실패'));
+      },'image/jpeg',0.82);
+    };
+    img.onerror=function(){URL.revokeObjectURL(url);reject(new Error('이미지를 읽을 수 없습니다'));};
+    img.src=url;
+  });
+}
+
+// ── 블로그·인스타·카카오채널 링크 (상담신청서 상단) ──
+function caInitLinks(){
+  var blogA=document.getElementById('ca-blog-link');
+  var instaA=document.getElementById('ca-insta-link');
+  var chBtn=document.getElementById('ca-channel-link');
+  var checkWrap=document.getElementById('ca-blog-check-wrap');
+  if(blogA){if(BLOG_URL){blogA.href=BLOG_URL;blogA.style.display='';}else{blogA.style.display='none';}}
+  if(instaA){if(INSTAGRAM_URL){instaA.href=INSTAGRAM_URL;instaA.style.display='';}else{instaA.style.display='none';}}
+  if(chBtn){if(KAKAO_CHANNEL_URL){chBtn.href=KAKAO_CHANNEL_URL;chBtn.style.display='';}else{chBtn.style.display='none';}}
+  if(checkWrap)checkWrap.style.display=(BLOG_URL||INSTAGRAM_URL)?'':'none';
+}
+
+// ── 과목별 교재명·교재사진 (여러 개 추가 가능, 과목 중복 허용) ──
+function caAddTextbookRow(){
+  caTextbooks.push({key:caTbSeq++,subject:'수학',name:'',photoBlob:null,previewUrl:''});
+  caRenderTextbookRows();
+}
+function caRemoveTextbookRow(key){
+  caTextbooks=caTextbooks.filter(function(r){return r.key!==key;});
+  caRenderTextbookRows();
+}
+function caUpdateTextbookSubject(key,val){
+  var r=caTextbooks.find(function(x){return x.key===key;});
+  if(r)r.subject=val;
+}
+function caUpdateTextbookName(key,val){
+  var r=caTextbooks.find(function(x){return x.key===key;});
+  if(r)r.name=val;
+}
+function caOnTextbookPhotoSelected(key,inputEl){
+  var file=inputEl.files&&inputEl.files[0];
+  if(!file)return;
+  var r=caTextbooks.find(function(x){return x.key===key;});
+  if(!r)return;
+  var statusEl=document.getElementById('ca-tb-status-'+key);
+  if(statusEl)statusEl.textContent='사진 처리 중...';
+  caResizeImageFile(file).then(function(blob){
+    r.photoBlob=blob;
+    r.previewUrl=URL.createObjectURL(blob);
+    var img=document.getElementById('ca-tb-preview-'+key);
+    if(img){img.src=r.previewUrl;img.style.display='';}
+    if(statusEl)statusEl.textContent='사진 준비됨 (약 '+Math.round(blob.size/1024)+'KB)';
+  }).catch(function(e){
+    r.photoBlob=null;
+    if(statusEl)statusEl.textContent='사진을 처리하지 못했습니다 — 다른 사진으로 다시 시도해주세요';
+  });
+}
+function caRenderTextbookRows(){
+  var wrap=document.getElementById('ca-textbook-list');
+  if(!wrap)return;
+  if(!caTextbooks.length){
+    wrap.innerHTML='';
+    return;
+  }
+  wrap.innerHTML=caTextbooks.map(function(r){
+    var opts=['수학','영어','국어'].map(function(s){
+      return '<option value="'+s+'"'+(r.subject===s?' selected':'')+'>'+s+'</option>';
+    }).join('');
+    var nameVal=(r.name||'').replace(/"/g,'&quot;');
+    return '<div class="ca-tb-row">'+
+      '<div style="display:flex;gap:8px;margin-bottom:6px">'+
+        '<select class="form-input" style="flex:0 0 76px" onchange="caUpdateTextbookSubject('+r.key+',this.value)">'+opts+'</select>'+
+        '<input class="form-input" style="flex:1" placeholder="교재명 (예: 능률VOCA 중등필수)" value="'+nameVal+'" oninput="caUpdateTextbookName('+r.key+',this.value)">'+
+        '<button type="button" class="btn btn-gray btn-xs" onclick="caRemoveTextbookRow('+r.key+')">삭제</button>'+
+      '</div>'+
+      '<input class="form-input" type="file" accept="image/*" capture="environment" onchange="caOnTextbookPhotoSelected('+r.key+',this)">'+
+      '<img id="ca-tb-preview-'+r.key+'" src="'+(r.previewUrl||'')+'" style="max-width:120px;max-height:120px;border-radius:8px;border:1px solid var(--border);margin-top:6px;display:'+(r.previewUrl?'':'none')+'">'+
+      '<div id="ca-tb-status-'+r.key+'" style="font-size:11px;color:var(--t3);margin-top:4px"></div>'+
+    '</div>';
+  }).join('');
+}
+
+async function submitConsultApplication(){
+  var name=document.getElementById('ca-name').value.trim();
+  var phone=document.getElementById('ca-phone').value.trim();
+  var subjects=Array.prototype.map.call(document.querySelectorAll('.ca-subj-chk:checked'),function(c){return c.value;});
+  var referralSources=Array.prototype.map.call(document.querySelectorAll('.ca-ref-chk:checked'),function(c){return c.value;});
+  var concern=document.getElementById('ca-memo').value.trim();
+  var consent=document.getElementById('ca-consent').checked;
+  var errEl=document.getElementById('ca-error');
+  if(!name){errEl.textContent='학생 이름을 입력해주세요';return;}
+  if(!phone){errEl.textContent='학부모 연락처를 입력해주세요';return;}
+  if(!subjects.length){errEl.textContent='상담 희망 과목을 1개 이상 선택해주세요';return;}
+  if(!concern){errEl.textContent='현재 고민되는 부분 또는 상담받고 싶은 내용을 입력해주세요';return;}
+  if(!consent){errEl.textContent='개인정보 수집·이용에 동의해주셔야 신청이 가능합니다';return;}
+  errEl.textContent='';
+  var submitBtn=document.querySelector('#consult-apply-form .login-btn');
+  var schoolSel=document.getElementById('ca-school').value;
+  var school=schoolSel==='__custom__'?document.getElementById('ca-school-custom').value.trim():schoolSel;
+  var dateVal=document.getElementById('ca-date').value;
+  var timeVal=document.getElementById('ca-time').value;
+  var appointmentAt='';
+  if(dateVal){appointmentAt=dateVal+(timeVal?('T'+timeVal):'T00:00');}
+  var entry={
+    id:uid++,
+    kind:'consult',
+    name:name,
+    school:school,
+    grade:document.getElementById('ca-grade').value,
+    phone:phone,
+    subjectWish:subjects.join(', '),
+    memo:concern,
+    otherAcademy:document.getElementById('ca-other-academy').value.trim(),
+    referralSource:referralSources.join(', '),
+    appointmentAt:appointmentAt,
+    phoneTime:document.getElementById('ca-phone-time').value.trim(),
+    blogChecked:!!(document.getElementById('ca-blog-check')&&document.getElementById('ca-blog-check').checked),
+    textbooks:[],
+    consent:true,
+    ts:Date.now(),
+    date:todayKo()
+  };
+  var rowsWithContent=caTextbooks.filter(function(r){return r.name.trim()||r.photoBlob;});
+  if(rowsWithContent.length){
+    if(submitBtn){submitBtn.disabled=true;submitBtn.textContent='사진 업로드 중...';}
+    for(var i=0;i<rowsWithContent.length;i++){
+      var r=rowsWithContent[i];
+      var tb={subject:r.subject,name:r.name.trim(),photoUrl:''};
+      if(r.photoBlob){
+        try{
+          if(!supabaseClient)throw new Error('오프라인');
+          var path=entry.id+'-'+r.key+'-'+Date.now()+'.jpg';
+          var up=await supabaseClient.storage.from(CONSULT_PHOTO_BUCKET).upload(path,r.photoBlob,{contentType:'image/jpeg'});
+          if(up.error)throw up.error;
+          var pub=supabaseClient.storage.from(CONSULT_PHOTO_BUCKET).getPublicUrl(path);
+          tb.photoUrl=(pub&&pub.data&&pub.data.publicUrl)||'';
+        }catch(e){
+          console.warn('상담신청서 교재 사진 업로드 실패',e);
+          // 사진 업로드가 실패해도 나머지 신청 내용은 그대로 접수함(사진만 빠짐)
+        }
+      }
+      entry.textbooks.push(tb);
+    }
+    if(submitBtn){submitBtn.disabled=false;submitBtn.textContent='상담 신청하기';}
+  }
+  if(!DB.consultApplications)DB.consultApplications=[];
+  DB.consultApplications.unshift(entry);
+  save();
+  document.getElementById('consult-apply-form').style.display='none';
+  document.getElementById('consult-apply-done').style.display='';
+  var kakaoBtn=document.getElementById('ca-kakao-channel-btn');
+  if(kakaoBtn){
+    if(KAKAO_CHANNEL_URL){kakaoBtn.href=KAKAO_CHANNEL_URL;kakaoBtn.style.display='block';}
+    else{kakaoBtn.style.display='none';}
+  }
+}
 function autoConvertGoogleFormConsults(){
   var apps=DB.consultApplications||[];
   var changed=false;
@@ -2527,11 +2899,24 @@ function renderConsultApplications(){
     return;
   }
   var rows=apps.map(function(a){
+    var isConsult=a.kind==='consult';
+    var kindBadge=isConsult?'<span class="badge badge-amber">상담신청</span>':'<span class="badge badge-blue">입회원서</span>';
+    var apptLine=a.appointmentAt?('<div style="font-size:11px;color:var(--navy);font-weight:700;margin-top:2px">희망 상담: '+caFmtAppointment(a.appointmentAt)+'</div>'):'';
+    var textbooks=a.textbooks||[];
+    var textbookLine=textbooks.length?('<div style="font-size:11px;color:var(--t3)">현재 교재: '+textbooks.map(function(t){return '['+t.subject+'] '+(t.name||'(이름 미입력)');}).join(', ')+'</div>'):'';
+    var photoLine=textbooks.some(function(t){return t.photoUrl;})?('<div style="margin-top:4px;display:flex;gap:4px;flex-wrap:wrap">'+textbooks.filter(function(t){return t.photoUrl;}).map(function(t){return '<a href="'+t.photoUrl+'" target="_blank" rel="noopener"><img src="'+t.photoUrl+'" title="'+t.subject+'" style="max-width:70px;max-height:70px;border-radius:6px;border:1px solid var(--border)"></a>';}).join('')+'</div>'):'';
+    var extraBits=[];
+    if(a.phoneTime)extraBits.push('전화 가능: '+a.phoneTime);
+    if(a.otherAcademy)extraBits.push('다른 학습: '+a.otherAcademy);
+    if(a.referralSource)extraBits.push('유입경로: '+a.referralSource);
+    var extraInfoLine=extraBits.length?('<div style="font-size:11px;color:var(--t3)">'+extraBits.join(' · ')+'</div>'):'';
+    var subjLine=(a.school||a.grade||a.subjectWish)?('<div style="font-size:11px;color:var(--t3)">'+(a.school||'')+' '+(a.grade||'')+' · 희망과목: '+(a.subjectWish||'-')+'</div>'):'';
     return '<div style="display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--border);flex-wrap:wrap">'+
       '<div style="flex:1;min-width:160px">'+
-        '<b style="font-size:13px">'+a.name+'</b>'+
-        '<div style="font-size:11px;color:var(--t3)">'+(a.school||'')+' '+(a.grade||'')+' · 수강과목: '+(a.subjectWish||'-')+'</div>'+
+        '<b style="font-size:13px">'+a.name+'</b> '+kindBadge+
+        subjLine+
         '<div style="font-size:11px;color:var(--t3)">학부모 연락처: '+(a.phone||'-')+' · 신청일: '+(a.date||'-')+'</div>'+
+        apptLine+extraInfoLine+textbookLine+photoLine+
         (a.memo?('<div style="font-size:11px;color:var(--t2);margin-top:2px">'+a.memo+'</div>'):'')+
       '</div>'+
       '<button class="btn btn-blue btn-xs" onclick="convertApplicationToStudent('+a.id+')">원생으로 등록</button>'+
@@ -2549,7 +2934,26 @@ function deleteConsultApplication(id){
 function convertApplicationToStudent(id){
   var a=(DB.consultApplications||[]).find(function(x){return x.id===id;});
   if(!a)return;
-  pendingApplicationPrefill=a;
+  if(a.kind==='consult'){
+    // 상담신청서는 address/등원하원장소 같은 입회원서 전용 칸이 없으므로, 그 대신 기록해둔
+    // 희망과목·희망 상담일시·전화가능시간·다른학습·교재명/사진을 메모 칸에 자동으로 합쳐서 정보가 누락되지 않게 함
+    // (학교·학년은 school/grade로 그대로 넘어가 원생등록 모달의 학교/학년 칸에 바로 채워짐)
+    var extraLines=[];
+    if(a.subjectWish)extraLines.push('상담 희망 과목: '+a.subjectWish);
+    if(a.appointmentAt)extraLines.push('희망 상담: '+caFmtAppointment(a.appointmentAt));
+    if(a.phoneTime)extraLines.push('전화 상담 가능 시간: '+a.phoneTime);
+    if(a.otherAcademy)extraLines.push('현재 다니는 학원/다른 학습: '+a.otherAcademy);
+    if(a.referralSource)extraLines.push('학원을 알게 된 경로: '+a.referralSource);
+    (a.textbooks||[]).forEach(function(t){
+      var line='현재 교재['+t.subject+']: '+(t.name||'(이름 미입력)');
+      if(t.photoUrl)line+=' ('+t.photoUrl+')';
+      extraLines.push(line);
+    });
+    var mergedMemo=[a.memo||'',extraLines.join(' · ')].filter(Boolean).join('\n');
+    pendingApplicationPrefill=Object.assign({},a,{memo:mergedMemo});
+  }else{
+    pendingApplicationPrefill=a;
+  }
   openStudentModal(null);
   toast(a.name+' 신청 정보를 불러왔습니다 — 확인 후 저장해주세요');
 }
@@ -3080,7 +3484,9 @@ function addExtraPayment(){
     return;
   }
   if(!DB.extraPayments)DB.extraPayments=[];
-  DB.extraPayments.unshift({id:uid++,student:stu,category:cat,title:title,amount:amount,date:date||'',method:method,paid:false,ts:Date.now()});
+  // 27차: "교재및 응시료는 일회성이라 입력한 달에만 보이게" 요청으로, 지금 보고 있는(등록하는) 월을
+  // entryYm으로 같이 저장해둠 — 이후 수납 여부와 무관하게 이 달에만 목록에 보이도록 함
+  DB.extraPayments.unshift({id:uid++,student:stu,category:cat,title:title,amount:amount,date:date||'',method:method,paid:false,entryYm:(curPayMonth||ymNow()),ts:Date.now()});
   save();
   resetExtraPayForm();
   renderExtraPaymentsList();
@@ -3116,24 +3522,59 @@ function deleteExtraPayment(id){
   if(editingExtraPayId===id)resetExtraPayForm();
   save();renderExtraPaymentsList();
 }
+// 27차: 응시료·교재비 항목이 등록된 "입력한 달"을 구함 — entryYm이 있으면 그걸 쓰고(새로 등록된
+// 항목), 과거(27차 이전)에 만들어져 entryYm이 없는 기존 항목은 납부일(date) → 등록 시각(ts) 순으로
+// 대신 추정함(하위호환 — 기존 데이터가 갑자기 전부 사라져 보이지 않도록 함)
+function vtExtraPayEntryYm(p){
+  if(p.entryYm)return p.entryYm;
+  if(p.date)return p.date.slice(0,7);
+  if(p.ts)return new Date(p.ts).toISOString().slice(0,7);
+  return ymNow();
+}
+function toggleExtraPayCheckAll(checked){
+  document.querySelectorAll('.extra-pay-chk').forEach(function(c){c.checked=checked;});
+  updateExtraPayCheckCount();
+}
+function updateExtraPayCheckCount(){
+  var n=document.querySelectorAll('.extra-pay-chk:checked').length;
+  var el=document.getElementById('extra-pay-check-count');
+  if(el)el.textContent=n?n+'개 선택됨':'';
+  var allEl=document.getElementById('extra-pay-check-all');
+  var totalChk=document.querySelectorAll('.extra-pay-chk').length;
+  if(allEl)allEl.checked=(totalChk>0 && n===totalChk);
+}
+function bulkDeleteExtraPayments(){
+  var ids=Array.prototype.map.call(document.querySelectorAll('.extra-pay-chk:checked'),function(c){return parseInt(c.value,10);});
+  if(!ids.length){toast('삭제할 항목을 먼저 체크해주세요');return;}
+  if(!confirm(ids.length+'개 항목을 삭제할까요? 되돌릴 수 없습니다.'))return;
+  ids.forEach(function(id){tombstone('extraPayments',id);});
+  DB.extraPayments=(DB.extraPayments||[]).filter(function(p){return ids.indexOf(p.id)===-1;});
+  if(ids.indexOf(editingExtraPayId)!==-1)resetExtraPayForm();
+  save();
+  renderExtraPaymentsList();
+  toast(ids.length+'개 항목을 삭제했습니다');
+}
 function renderExtraPaymentsList(){
   var listEl=document.getElementById('extra-pay-list');
   if(!listEl)return;
   var month=curPayMonth||ymNow();
+  // 27차: "교재및 응시료는 일회성이라 입력한 달에만 보이게" 요청으로, 수납 여부와 상관없이
+  // "입력한 달"(entryYm)이 지금 보고 있는 달과 같은 항목만 표시하도록 변경(이전엔 미납 항목이
+  // 월과 무관하게 항상 쌓여서 보였음)
   var items=(DB.extraPayments||[]).filter(function(p){
-    if(!p.paid)return true; // 미납(대기) 항목은 월 상관없이 항상 표시
-    return (p.date||'').slice(0,7)===month;
+    return vtExtraPayEntryYm(p)===month;
   }).sort(function(a,b){
     if(!!a.paid!==!!b.paid)return a.paid?1:-1; // 미납을 위로
     return (b.date||'').localeCompare(a.date||'');
   });
   if(!items.length){
-    listEl.innerHTML='<div style="padding:12px 0;text-align:center;color:var(--t3);font-size:12px">등록된 항목이 없습니다</div>';
+    listEl.innerHTML='<div style="padding:12px 0;text-align:center;color:var(--t3);font-size:12px">이 달에 등록된 항목이 없습니다</div>';
   }else{
     listEl.innerHTML=items.map(function(p){
       var statusBadge=p.paid?'<span class="badge badge-green">수납완료</span>':'<span class="badge badge-red">미납</span>';
       var detail=p.paid?(fmtWon(feeToNumber(p.amount))+' · '+(p.method||'-')+' · '+(p.date||'-')):(fmtWon(feeToNumber(p.amount))+' (결제 대기)');
       return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);flex-wrap:wrap">'+
+        '<input type="checkbox" class="extra-pay-chk" value="'+p.id+'" onchange="updateExtraPayCheckCount()">'+
         '<span class="badge badge-blue">'+(EXTRA_PAY_CAT_LABELS[p.category]||'기타')+'</span>'+
         statusBadge+
         '<div style="flex:1;min-width:140px"><b style="font-size:13px">'+p.student+'</b> · '+p.title+
@@ -3149,6 +3590,7 @@ function renderExtraPaymentsList(){
   var total=paidItems.reduce(function(sum,p){return sum+feeToNumber(p.amount);},0);
   var totalEl=document.getElementById('extra-pay-total');
   if(totalEl)totalEl.textContent='이번 달 수납 합계: '+fmtWon(total)+' ('+paidItems.length+'건)'+(pendingCount?' · 결제 대기 '+pendingCount+'건':'');
+  updateExtraPayCheckCount();
 }
 
 
@@ -3777,7 +4219,7 @@ function goPage(page, btn){
 }
 function refreshPage(page){
   if(page==='dash')renderDash();
-  if(page==='students'){syncAllStudentSubjectsFromSchedule();if(typeof vtAutoFillTestPins==='function')vtAutoFillTestPins();fillAllSelects();renderStuSubjTabs();renderStudentList('');renderApplyLinkText();}
+  if(page==='students'){syncAllStudentSubjectsFromSchedule();if(typeof vtAutoFillTestPins==='function')vtAutoFillTestPins();fillAllSelects();renderStuSubjTabs();renderStudentList('');renderApplyLinkText();renderConsultApplyLinkText();}
   if(page==='sched'){
     var mt=document.getElementById('merge-toggle');
     if(mt)mt.checked=(DB.scheduleMergeConsecutive!==false);
@@ -4537,11 +4979,9 @@ function renderTodayAttList(students, day){
     return;
   }
 
-  var CC=[['var(--m1)','var(--m1t)'],['var(--en)','var(--ent)'],['var(--ko)','var(--kot)'],['var(--m2)','var(--m2t)']];
-
   groups.forEach(function(g){
     var gTime=g.time; var gCi=g.ci; var gSubj=g.subject; var gStu=g.students;
-    var col=CC[gCi%CC.length]||CC[0];
+    var col=getSubjColorPair(gSubj); // 27차: 컬럼번호%4 대신 과목 이름 기준 색상(수업표 색 중복 수정)
     var sp=gSubj.split(' '); var sn=sp[0]||''; var tc=sp.slice(1).join(' ')||'';
 
     var sec=document.createElement('div');
@@ -5019,11 +5459,9 @@ function renderDashSchedSummary(){
   }
   subjects.sort(function(a,b){return subjectMap[a].ci-subjectMap[b].ci;}); // 수업표와 동일한 컬럼 순서로 고정
 
-  var colors=[['var(--m1)','var(--m1t)'],['var(--en)','var(--ent)'],['var(--ko)','var(--kot)'],['var(--m2)','var(--m2t)']];
-
   subjects.forEach(function(subj){
     var sg=subjectMap[subj];
-    var col=colors[sg.ci%colors.length]||['var(--s2)','var(--t1)'];
+    var col=getSubjColorPair(subj); // 27차: 컬럼번호%4 대신 과목 이름 기준 색상(수업표 색 중복 수정)
     var parts=subj.split(' ');
     var subName=parts[0]||subj;
     var teacher=parts.slice(1).join(' ')||'';
@@ -5482,14 +5920,12 @@ function renderStuSubjTabs(){
   var el=document.getElementById('stu-subj-filter-tabs');if(!el)return;
   var subjects=getAllSubjectTeachers();
   var subjMap=getStuSubjMap();
-  var colPairs=[['var(--m1)','var(--m1t)'],['var(--en)','var(--ent)'],['var(--ko)','var(--kot)'],['var(--m2)','var(--m2t)']];
   el.innerHTML='';
   subjects.sort(function(a,b){return getSubjCi(a)-getSubjCi(b);});
   subjects.forEach(function(subj){
     var count=0;
     Object.keys(subjMap).forEach(function(n){if(subjMap[n].has(subj))count++;});
-    var ci=getSubjCi(subj);
-    var col=colPairs[ci>=0?ci%colPairs.length:0];
+    var col=getSubjColorPair(subj); // 27차: 컬럼번호%4 대신 과목 이름 기준 색상(수업표 색 중복 수정)
     var on=stuSubjFilter===subj;
     var btn=document.createElement('button');
     btn.className='filter-tab'+(on?' on':'');
@@ -5933,7 +6369,7 @@ function buildAllDaysUnifiedTable(container){
         if(stu&&stu.length){
           td.className='has-s';td.style.cursor='pointer';
           var wrap=document.createElement('div');wrap.style.cssText='display:flex;flex-direction:column;align-items:flex-start;gap:1px';
-          stu.forEach(function(n){var sp=document.createElement('div');var prof=getStuProfile(n);var onLv=isStuOnLeave(n,dd.day.cols[ci]);sp.className='chip2 '+CCLS[ci%CCLS.length]+(onLv?' on-leave':'');sp.textContent=(onLv?'⏸ ':'')+n+(prof&&isBirthdayToday(prof.birth)?' 🎂':'');wrap.appendChild(sp);});
+          stu.forEach(function(n){var sp=document.createElement('div');var prof=getStuProfile(n);var onLv=isStuOnLeave(n,dd.day.cols[ci]);sp.className='chip2'+(onLv?' on-leave':'');if(!onLv){var scol=getSubjColorPair(dd.day.cols[ci]);sp.style.background=scol[0];sp.style.color=scol[1];}sp.textContent=(onLv?'⏸ ':'')+n+(prof&&isBirthdayToday(prof.birth)?' 🎂':'');wrap.appendChild(sp);});
           td.appendChild(wrap);
           var editBtn2=document.createElement('button');
           editBtn2.style.cssText='font-size:9px;padding:1px 5px;border-radius:4px;border:1px solid var(--border);background:var(--s2);color:var(--t2);cursor:pointer;width:100%;margin-top:2px;pointer-events:auto';
@@ -6003,7 +6439,7 @@ function buildSubjectTableInto(container,subjName){
       if(stu&&stu.length){
         td.className='has-s';td.style.cursor='pointer';
         var wrap=document.createElement('div');wrap.style.cssText='display:flex;flex-direction:column;align-items:flex-start;gap:1px';
-        stu.forEach(function(n){var sp=document.createElement('div');var prof=getStuProfile(n);var onLv=isStuOnLeave(n,subjName);sp.className='chip2 '+CCLS[ci%CCLS.length]+(onLv?' on-leave':'');sp.textContent=(onLv?'⏸ ':'')+n+(prof&&isBirthdayToday(prof.birth)?' 🎂':'');wrap.appendChild(sp);});
+        stu.forEach(function(n){var sp=document.createElement('div');var prof=getStuProfile(n);var onLv=isStuOnLeave(n,subjName);sp.className='chip2'+(onLv?' on-leave':'');if(!onLv){var scol=getSubjColorPair(subjName);sp.style.background=scol[0];sp.style.color=scol[1];}sp.textContent=(onLv?'⏸ ':'')+n+(prof&&isBirthdayToday(prof.birth)?' 🎂':'');wrap.appendChild(sp);});
         td.appendChild(wrap);
         var editBtn2=document.createElement('button');
         editBtn2.style.cssText='font-size:9px;padding:1px 5px;border-radius:4px;border:1px solid var(--border);background:var(--s2);color:var(--t2);cursor:pointer;width:100%;margin-top:2px;pointer-events:auto';
@@ -6072,7 +6508,7 @@ function buildDayTableInto(tbl2,dayIdx){
           td.appendChild(badge);
         }
         var chipWrap =document.createElement('div');chipWrap.style.cssText='display:flex;flex-wrap:wrap;gap:2px;margin-bottom:3px;pointer-events:none';
-        stu.forEach(function(n){var sp =document.createElement('span');var prof=getStuProfile(n);var onLv=isStuOnLeave(n,day.cols[ci]);sp.className='chip2 '+CCLS[ci%CCLS.length]+(onLv?' on-leave':'');sp.textContent=(onLv?'⏸ ':'')+n+(prof&&isBirthdayToday(prof.birth)?' 🎂':'');chipWrap.appendChild(sp);});
+        stu.forEach(function(n){var sp =document.createElement('span');var prof=getStuProfile(n);var onLv=isStuOnLeave(n,day.cols[ci]);sp.className='chip2'+(onLv?' on-leave':'');if(!onLv){var scol=getSubjColorPair(day.cols[ci]);sp.style.background=scol[0];sp.style.color=scol[1];}sp.textContent=(onLv?'⏸ ':'')+n+(prof&&isBirthdayToday(prof.birth)?' 🎂':'');chipWrap.appendChild(sp);});
         var editBtn =document.createElement('button');
         editBtn.style.cssText='font-size:10px;padding:2px 6px;border-radius:4px;border:1px solid var(--border);background:var(--s2);color:var(--t2);cursor:pointer;width:100%;pointer-events:auto';
         editBtn.textContent='✏️ 추가·삭제';
@@ -7186,7 +7622,7 @@ function renderSettingsClsList(){
         <button class="btn btn-gray btn-xs" onclick="openClsModal(${curSettingsDay},${ri},${ci},true)">편집</button>
         <button class="btn btn-gray btn-xs" style="margin-left:4px" onclick="delCls(${curSettingsDay},${ri},${ci})">삭제</button>
       </div>
-      <div style="display:flex;flex-wrap:wrap;gap:3px">${stu.map(n=>{var onLv=isStuOnLeave(n,day.cols[ci]);return `<span class="chip2 ${CCLS[ci%CCLS.length]}${onLv?' on-leave':''}">${onLv?'⏸ ':''}${n}</span>`;}).join('')}</div>`;
+      <div style="display:flex;flex-wrap:wrap;gap:3px">${stu.map(n=>{var onLv=isStuOnLeave(n,day.cols[ci]);var scol=getSubjColorPair(day.cols[ci]);var styleAttr=onLv?'':('background:'+scol[0]+';color:'+scol[1]+';');return `<span class="chip2${onLv?' on-leave':''}" style="${styleAttr}">${onLv?'⏸ ':''}${n}</span>`;}).join('')}</div>`;
       el.appendChild(div);
     });
   });
@@ -7498,6 +7934,14 @@ tryAutoLogin();
       document.getElementById('app-root').style.display='none';
       document.getElementById('public-apply-screen').style.display='flex';
       if(typeof updateMsGradeOptions==='function')updateMsGradeOptions('pa');
+    }
+    if(params.get('consult')==='1'){
+      document.getElementById('login-screen').style.display='none';
+      document.getElementById('app-root').style.display='none';
+      document.getElementById('consult-apply-screen').style.display='flex';
+      if(typeof updateMsGradeOptions==='function')updateMsGradeOptions('ca');
+      if(typeof caInitLinks==='function')caInitLinks();
+      if(typeof caRenderTextbookRows==='function')caRenderTextbookRows();
     }
   }catch(e){}
 })();
@@ -8158,7 +8602,6 @@ function renderSubjNoticeGrid(groups){
   }
   grid.innerHTML='';
   var td=dashDateStr();
-  var cols=[['var(--m1)','var(--m1t)'],['var(--en)','var(--ent)'],['var(--ko)','var(--kot)'],['var(--m2)','var(--m2t)']];
   var seen={};
   var uniq=[];
   groups.forEach(function(g){
@@ -8170,7 +8613,7 @@ function renderSubjNoticeGrid(groups){
   uniq.forEach(function(g){
     var subj=g.subject;
     var isCommon=g.ci===-1;
-    var col=isCommon?['var(--navy)','#fff']:(cols[g.ci%cols.length]||cols[0]);
+    var col=isCommon?['var(--navy)','#fff']:getSubjColorPair(subj); // 27차: 과목 이름 기준 색상(수업표 색 중복 수정)
     var sp=subj.split(' '); var sn=isCommon?'':(sp[0]||''); var tc=isCommon?'공지사항':(sp.slice(1).join(' ')||'');
     var ci=g.ci;
 
@@ -8255,7 +8698,6 @@ function renderSubjView(){
     return;
   }
   if(!DB.notices)DB.notices={};if(!DB.homework)DB.homework={};if(!DB.classMemos)DB.classMemos=[];
-  var cols2={0:['var(--m1)','var(--m1t)'],1:['var(--en)','var(--ent)'],2:['var(--ko)','var(--kot)'],3:['var(--m2)','var(--m2t)']};
   var subjGroups={};
   day.rows.forEach(function(row){row.cells.forEach(function(stu,ci){
     if(!stu||!stu.length||!day.cols[ci])return;
@@ -8270,7 +8712,7 @@ function renderSubjView(){
   Object.entries(subjGroups).forEach(function(entry){
     var ci=parseInt(entry[0]),sg=entry[1];if(firstCi===null)firstCi=ci;
     if(activeCi===null)activeCi=firstCi;
-    var col=cols2[ci%4]||['var(--s2)','var(--t1)'];
+    var col=getSubjColorPair(sg.subject); // 27차: 컬럼번호%4 대신 과목 이름 기준 색상(수업표 색 중복 수정)
     var parts=sg.subject.split(' ');var subName=parts[0];var teacher=parts.slice(1).join(' ');
     var stuArr=[...sg.students];
     var subjMakeupsForList=(DB.makeups||[]).filter(function(m){return m&&m.makeupDate===tdDash&&m.subject===sg.subject;});
@@ -8906,17 +9348,27 @@ function smsApplyLink(){
     fallbackCopy(body);
   }
 }
-var GOOGLE_CONSULT_LINK='https://forms.gle/MLZSsBvb81Rv5qTh6';
+// 27차 후속: 구글폼 상담신청서는 앱으로 자동 연동되는 통로가 없어서(27차 검토 결과),
+// 입회원서와 같은 방식(자체 폼 → DB.consultApplications 직결)으로 만든 상담신청서로 교체함.
+function getConsultApplyLink(){
+  return window.location.origin+window.location.pathname.replace(/[^\/]*$/,'')+'?consult=1';
+}
+function renderConsultApplyLinkText(){
+  var el=document.getElementById('consult-link-text');
+  if(el)el.textContent=getConsultApplyLink();
+}
 function copyConsultLink(){
-  var afterCopy=function(){toast('구글 상담신청서 링크가 복사되었습니다');};
+  var link=getConsultApplyLink();
+  var afterCopy=function(){toast('상담신청서 링크가 복사되었습니다');};
   if(navigator.clipboard&&navigator.clipboard.writeText){
-    navigator.clipboard.writeText(GOOGLE_CONSULT_LINK).then(afterCopy).catch(function(){fallbackCopy(GOOGLE_CONSULT_LINK);});
+    navigator.clipboard.writeText(link).then(afterCopy).catch(function(){fallbackCopy(link);});
   }else{
-    fallbackCopy(GOOGLE_CONSULT_LINK);
+    fallbackCopy(link);
   }
 }
 function smsConsultLink(){
-  var body='제이엠 수학영어&리드인학원 상담신청서입니다. 아래 링크에서 작성해주세요.\n'+GOOGLE_CONSULT_LINK;
+  var link=getConsultApplyLink();
+  var body='제이엠 수학영어&리드인학원 상담신청서입니다. 아래 링크에서 작성해주세요.\n'+link;
   var isMobileDevice=/Android|iPhone|iPad|iPod|Mobi/i.test(navigator.userAgent||'');
   if(isMobileDevice){
     window.location.href='sms:?body='+encodeURIComponent(body);
@@ -9384,6 +9836,22 @@ function showStudentLogin(){
 function backToStaffLogin(){
   document.getElementById('student-screen').style.display='none';
   document.getElementById('login-screen').style.display='flex';
+  // 27차: 선생님 로그인 입력창으로 바로 가지 않고, "학생/선생님" 선택 화면으로 돌아가도록 함
+  showLoginChooser();
+}
+// 27차: "첫페이지에서 학생로그인 관리자 로그인을 찾기쉽게 다시 만들어줘" 요청으로 추가된
+// "학생/선생님" 선택 화면 전환 함수들
+function showLoginChooser(){
+  document.getElementById('login-chooser-view').style.display='';
+  document.getElementById('login-staff-view').style.display='none';
+  var errEl=document.getElementById('login-error');
+  if(errEl)errEl.textContent='';
+}
+function showStaffLoginForm(){
+  document.getElementById('login-chooser-view').style.display='none';
+  document.getElementById('login-staff-view').style.display='';
+  var idEl=document.getElementById('login-id');
+  if(idEl)idEl.focus();
 }
 function studentTryLogin(){
   var name=(document.getElementById('stu-login-name').value||'').trim();
