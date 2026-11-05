@@ -766,13 +766,13 @@ button,select,input,textarea{font-family:inherit}
         <a href="#" id="ca-channel-link" target="_blank" rel="noopener" class="btn btn-xs" style="background:#fee500;color:#3c1e1e">💬 카카오 채널</a>
       </div>
       <div style="font-size:12px;color:var(--t2);line-height:1.7;margin-bottom:12px">
-        등록을 먼저 권하기보다, 지금의 학습 상태와 필요한 방향을 확인하는 상담부터 시작합니다. 수학·영어·국어·리드인독서 중 상담이 필요한 과목을 선택해 주시면, 학습 상황과 고민을 충분히 듣고 필요한 경우 간단한 진단테스트를 함께 진행합니다.<br><b>100% 사전 예약제</b>로 운영되니, 아래 내용을 남겨주시면 확인 후 순차적으로 연락드리겠습니다.
+        현재의 학습 상태를 참고하여 수업 방향을 정하기 위해 진단테스트와 상담이 진행됩니다. 수학·영어·국어·리드인독서 중 상담이 필요한 과목을 선택해 주시면, 학습 상황과 고민을 충분히 들은 뒤 필요한 경우 간단한 진단테스트를 함께 진행합니다.<br><b>100% 사전 예약제</b>로 운영되오니, 아래 내용을 남겨주시면 확인 후 순차적으로 연락드리겠습니다.
       </div>
       <div class="apply-consent-box" style="margin-bottom:16px">
         <b>[상담 안내]</b><br>
         · 상담은 100% 예약제로 진행됩니다<br>
-        · 학생 상황에 따라 상담만 진행되거나, 간단한 진단테스트가 함께 진행될 수 있습니다<br>
-        · 최근 시험지·성적표나 현재 교재가 있으면 상담 시 가져오셔도 좋습니다
+        · 학생 상황에 따라 상담만 진행되거나, 간단한 진단테스트가 함께 진행될 수 있습니다(진단테스트는 과목별 40분 내외 소요)<br>
+        · 방문 상담 시에는 최근 시험지·성적표나 현재 학습 중인 교재를 가지고 와주시면 더 정확한 상담이 가능합니다
       </div>
 
       <div class="form-group"><label class="form-label">학생 이름 *</label><input class="form-input" id="ca-name" placeholder="학생 이름"></div>
@@ -863,8 +863,9 @@ button,select,input,textarea{font-family:inherit}
     </div>
     <div id="consult-apply-done" style="display:none;text-align:center;padding:30px 10px">
       <div style="font-size:40px;margin-bottom:10px">✅</div>
-      <div style="font-size:16px;font-weight:700;color:var(--navy);margin-bottom:8px">상담 신청이 접수되었습니다</div>
-      <div style="font-size:13px;color:var(--t2);line-height:1.7;margin-bottom:20px">입력하신 연락처로 상담 일정을<br>확정해드리겠습니다. 감사합니다.</div>
+      <div style="font-size:16px;font-weight:700;color:var(--navy);margin-bottom:8px">상담 신청이 정상적으로 접수되었습니다</div>
+      <div style="font-size:13px;color:var(--t2);line-height:1.7;margin-bottom:20px">소중한 신청 감사드립니다.<br>입력해주신 연락처로 순차적으로 연락드려<br>상담 일정을 확정해드리겠습니다.</div>
+      <div id="ca-kakao-channel-desc" style="display:none;font-size:12px;color:var(--t2);line-height:1.6;margin-bottom:10px">💡 카카오톡 채널을 추가하시면 상담 일정 확정 안내를 가장 빠르게 받아보실 수 있습니다</div>
       <a href="#" id="ca-kakao-channel-btn" target="_blank" rel="noopener" class="login-btn" style="display:none;text-decoration:none;background:#fee500;color:#3c1e1e;box-sizing:border-box">💬 학원 카카오톡 채널 추가하기</a>
     </div>
   </div>
@@ -2751,11 +2752,28 @@ function caOnTextbookPhotoSelected(key,inputEl){
     r.previewUrl=URL.createObjectURL(blob);
     var img=document.getElementById('ca-tb-preview-'+key);
     if(img){img.src=r.previewUrl;img.style.display='';}
+    var delBtn=document.getElementById('ca-tb-photo-del-'+key);
+    if(delBtn)delBtn.style.display='';
     if(statusEl)statusEl.textContent='사진 준비됨 (약 '+Math.round(blob.size/1024)+'KB)';
   }).catch(function(e){
     r.photoBlob=null;
     if(statusEl)statusEl.textContent='사진을 처리하지 못했습니다 — 다른 사진으로 다시 시도해주세요';
   });
+}
+function caRemoveTextbookPhoto(key){
+  var r=caTextbooks.find(function(x){return x.key===key;});
+  if(!r)return;
+  r.photoBlob=null;
+  if(r.previewUrl){try{URL.revokeObjectURL(r.previewUrl);}catch(e){}}
+  r.previewUrl='';
+  var img=document.getElementById('ca-tb-preview-'+key);
+  if(img){img.src='';img.style.display='none';}
+  var delBtn=document.getElementById('ca-tb-photo-del-'+key);
+  if(delBtn)delBtn.style.display='none';
+  var fileInput=document.getElementById('ca-tb-file-'+key);
+  if(fileInput)fileInput.value='';
+  var statusEl=document.getElementById('ca-tb-status-'+key);
+  if(statusEl)statusEl.textContent='';
 }
 function caRenderTextbookRows(){
   var wrap=document.getElementById('ca-textbook-list');
@@ -2775,9 +2793,13 @@ function caRenderTextbookRows(){
         '<input class="form-input" style="flex:1" placeholder="교재명 (예: 능률VOCA 중등필수)" value="'+nameVal+'" oninput="caUpdateTextbookName('+r.key+',this.value)">'+
         '<button type="button" class="btn btn-gray btn-xs" onclick="caRemoveTextbookRow('+r.key+')">삭제</button>'+
       '</div>'+
-      '<input class="form-input" type="file" accept="image/*" capture="environment" onchange="caOnTextbookPhotoSelected('+r.key+',this)">'+
-      '<img id="ca-tb-preview-'+r.key+'" src="'+(r.previewUrl||'')+'" style="max-width:120px;max-height:120px;border-radius:8px;border:1px solid var(--border);margin-top:6px;display:'+(r.previewUrl?'':'none')+'">'+
-      '<div id="ca-tb-status-'+r.key+'" style="font-size:11px;color:var(--t3);margin-top:4px"></div>'+
+      '<input class="form-input" type="file" accept="image/*" id="ca-tb-file-'+r.key+'" onchange="caOnTextbookPhotoSelected('+r.key+',this)">'+
+      '<div style="display:flex;align-items:center;gap:8px;margin-top:6px">'+
+        '<img id="ca-tb-preview-'+r.key+'" src="'+(r.previewUrl||'')+'" style="max-width:120px;max-height:120px;border-radius:8px;border:1px solid var(--border);display:'+(r.previewUrl?'':'none')+'">'+
+        '<button type="button" class="btn btn-gray btn-xs" id="ca-tb-photo-del-'+r.key+'" style="display:'+(r.previewUrl?'':'none')+'" onclick="caRemoveTextbookPhoto('+r.key+')">✕ 사진 삭제</button>'+
+      '</div>'+
+      '<div style="font-size:11px;color:var(--t3);margin-top:4px">사진은 촬영 또는 갤러리에서 선택할 수 있습니다</div>'+
+      '<div id="ca-tb-status-'+r.key+'" style="font-size:11px;color:var(--t3);margin-top:2px"></div>'+
     '</div>';
   }).join('');
 }
@@ -2851,9 +2873,10 @@ async function submitConsultApplication(){
   document.getElementById('consult-apply-form').style.display='none';
   document.getElementById('consult-apply-done').style.display='';
   var kakaoBtn=document.getElementById('ca-kakao-channel-btn');
+  var kakaoDesc=document.getElementById('ca-kakao-channel-desc');
   if(kakaoBtn){
-    if(KAKAO_CHANNEL_URL){kakaoBtn.href=KAKAO_CHANNEL_URL;kakaoBtn.style.display='block';}
-    else{kakaoBtn.style.display='none';}
+    if(KAKAO_CHANNEL_URL){kakaoBtn.href=KAKAO_CHANNEL_URL;kakaoBtn.style.display='block';if(kakaoDesc)kakaoDesc.style.display='';}
+    else{kakaoBtn.style.display='none';if(kakaoDesc)kakaoDesc.style.display='none';}
   }
 }
 function autoConvertGoogleFormConsults(){
