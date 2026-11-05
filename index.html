@@ -2169,6 +2169,23 @@ button,select,input,textarea{font-family:inherit}
   </div>
 </div>
 
+<!-- ── 온라인 상담·등록 신청 상세보기 모달 ── -->
+<div class="modal-overlay" id="modal-consult-detail" onclick="if(event.target===this)closeModal('modal-consult-detail')">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-handle"></div>
+    <div class="modal-head">
+      <span class="modal-title" id="consult-detail-title">신청 상세</span>
+      <button class="modal-close" onclick="closeModal('modal-consult-detail')">✕</button>
+    </div>
+    <div class="modal-body" id="consult-detail-body"></div>
+    <div class="modal-footer">
+      <button class="modal-btn modal-btn-cancel" style="color:var(--red)" onclick="deleteConsultApplicationFromDetail()">삭제</button>
+      <button class="modal-btn modal-btn-cancel" onclick="closeModal('modal-consult-detail')">닫기</button>
+      <button class="modal-btn modal-btn-save" onclick="convertApplicationToStudentFromDetail()">원생으로 등록</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── 수업표에서 보강 등록 모달 (수업표 자체는 건드리지 않음) ── -->
 <div class="modal-overlay" id="modal-sched-mk" onclick="if(event.target===this)closeModal('modal-sched-mk')">
   <div class="modal" style="max-width:420px">
@@ -2935,13 +2952,14 @@ function renderConsultApplications(){
     var extraInfoLine=extraBits.length?('<div style="font-size:11px;color:var(--t3)">'+extraBits.join(' · ')+'</div>'):'';
     var subjLine=(a.school||a.grade||a.subjectWish)?('<div style="font-size:11px;color:var(--t3)">'+(a.school||'')+' '+(a.grade||'')+' · 희망과목: '+(a.subjectWish||'-')+'</div>'):'';
     return '<div style="display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--border);flex-wrap:wrap">'+
-      '<div style="flex:1;min-width:160px">'+
+      '<div style="flex:1;min-width:160px;cursor:pointer" onclick="openConsultApplicationDetail('+a.id+')">'+
         '<b style="font-size:13px">'+a.name+'</b> '+kindBadge+
         subjLine+
         '<div style="font-size:11px;color:var(--t3)">학부모 연락처: '+(a.phone||'-')+' · 신청일: '+(a.date||'-')+'</div>'+
         apptLine+extraInfoLine+textbookLine+photoLine+
         (a.memo?('<div style="font-size:11px;color:var(--t2);margin-top:2px">'+a.memo+'</div>'):'')+
       '</div>'+
+      '<button class="btn btn-gray btn-xs" onclick="openConsultApplicationDetail('+a.id+')">자세히 보기</button>'+
       '<button class="btn btn-blue btn-xs" onclick="convertApplicationToStudent('+a.id+')">원생으로 등록</button>'+
       '<button class="btn btn-gray btn-xs" onclick="deleteConsultApplication('+a.id+')">삭제</button>'+
     '</div>';
@@ -2953,6 +2971,59 @@ function deleteConsultApplication(id){
   tombstone('consultApplications',id);
   DB.consultApplications=(DB.consultApplications||[]).filter(function(a){return a.id!==id;});
   save();renderConsultApplications();updateTasksNavBadge();
+}
+var consultDetailCurrentId=null;
+function openConsultApplicationDetail(id){
+  var a=(DB.consultApplications||[]).find(function(x){return x.id===id;});
+  if(!a)return;
+  consultDetailCurrentId=id;
+  var isConsult=a.kind==='consult';
+  var kindLabel=isConsult?'상담신청':'입회원서';
+  var rows=[];
+  function row(label,val){
+    if(!val)return;
+    rows.push('<div style="margin-bottom:12px"><div style="font-size:11px;color:var(--t3);margin-bottom:2px">'+label+'</div><div style="font-size:13.5px;color:var(--t1);white-space:pre-wrap;line-height:1.5">'+val+'</div></div>');
+  }
+  row('이름',a.name);
+  row('유형',kindLabel);
+  row('학교/학년',[a.school,a.grade].filter(Boolean).join(' '));
+  row('학부모 연락처',a.phone);
+  row('희망 과목',a.subjectWish);
+  row('신청일',a.date);
+  row('방문 상담 희망 일시',a.appointmentAt?caFmtAppointment(a.appointmentAt):'');
+  row('전화 상담 가능 시간',a.phoneTime);
+  row('현재 학원 / 다른 학습',a.otherAcademy);
+  row('학원을 알게 된 경로',a.referralSource);
+  row('상담받고 싶은 내용',a.memo);
+  var textbooks=a.textbooks||[];
+  if(textbooks.length){
+    var tbHtml=textbooks.map(function(t){
+      var photoHtml=t.photoUrl?
+        '<a href="'+t.photoUrl+'" target="_blank" rel="noopener"><img src="'+t.photoUrl+'" style="max-width:150px;max-height:150px;border-radius:8px;border:1px solid var(--border);display:block;margin-bottom:4px"></a>':
+        '<div style="width:150px;height:60px;display:flex;align-items:center;justify-content:center;color:var(--t3);font-size:11px;border:1px dashed var(--border);border-radius:8px;margin-bottom:4px">사진 없음</div>';
+      return '<div style="display:inline-block;text-align:center;margin:0 10px 10px 0;vertical-align:top">'+photoHtml+
+        '<div style="font-size:11.5px;color:var(--t2)">['+t.subject+'] '+(t.name||'(이름 미입력)')+'</div>'+
+      '</div>';
+    }).join('');
+    rows.push('<div style="margin-bottom:12px"><div style="font-size:11px;color:var(--t3);margin-bottom:6px">현재·최근 사용 중인 교재</div><div>'+tbHtml+'</div></div>');
+  }
+  var titleEl=document.getElementById('consult-detail-title');
+  if(titleEl)titleEl.textContent=(a.name||'-')+' · '+kindLabel;
+  var bodyEl=document.getElementById('consult-detail-body');
+  if(bodyEl)bodyEl.innerHTML=rows.join('')||'<div style="font-size:12px;color:var(--t3)">표시할 내용이 없습니다</div>';
+  openModal('modal-consult-detail');
+}
+function deleteConsultApplicationFromDetail(){
+  if(consultDetailCurrentId==null)return;
+  var id=consultDetailCurrentId;
+  closeModal('modal-consult-detail');
+  deleteConsultApplication(id);
+}
+function convertApplicationToStudentFromDetail(){
+  if(consultDetailCurrentId==null)return;
+  var id=consultDetailCurrentId;
+  closeModal('modal-consult-detail');
+  convertApplicationToStudent(id);
 }
 function convertApplicationToStudent(id){
   var a=(DB.consultApplications||[]).find(function(x){return x.id===id;});
